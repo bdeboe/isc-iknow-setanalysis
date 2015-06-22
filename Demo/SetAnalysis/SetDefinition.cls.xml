@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Export generator="Cache" version="25">
+<Class name="Demo.SetAnalysis.SetDefinition">
+<Description>
+This class represents sets saved from the SetAnalysis demo application.</Description>
+<Super>%Persistent</Super>
+<TimeCreated>63658,49690.052118</TimeCreated>
+
+<Property name="DomainId">
+<Type>%Integer</Type>
+</Property>
+
+<Property name="Name">
+<Type>%String</Type>
+</Property>
+
+<Property name="Entities">
+<Type>%String</Type>
+<Collection>list</Collection>
+<Parameter name="MAXLEN"/>
+</Property>
+
+<Index name="NameIdx">
+<Properties>DomainId,Name</Properties>
+<Unique>1</Unique>
+</Index>
+
+<Index name="EntitiesIdx">
+<Type>bitmap</Type>
+<Properties>DomainId,Entities(ELEMENTS)</Properties>
+</Index>
+
+<Method name="GetFilter">
+<Description><![CDATA[
+Retrieves a <class>%iKnow.Filters.Filter</class> instance representing all the sources
+in this set.]]></Description>
+<ReturnType>%iKnow.Filters.Filter</ReturnType>
+<Implementation><![CDATA[
+	set tEntities = ""
+	for i = 1:1:..Entities.Count() {
+		set tEntities = tEntities _ $lb(..Entities.GetAt(i))
+	}
+	quit:'$d(tEntities) ##class(%iKnow.Filters.SourceIdFilter).%New(..DomainId, 0)
+	quit ##class(%iKnow.Filters.ContainsEntityFilter).%New(..DomainId, .tEntities)
+]]></Implementation>
+</Method>
+
+<Storage name="Default">
+<Type>%Library.CacheStorage</Type>
+<DataLocation>^Demo.SetAnalEB18.SetDefinitionD</DataLocation>
+<DefaultData>SetDefinitionDefaultData</DefaultData>
+<IdLocation>^Demo.SetAnalEB18.SetDefinitionD</IdLocation>
+<IndexLocation>^Demo.SetAnalEB18.SetDefinitionI</IndexLocation>
+<StreamLocation>^Demo.SetAnalEB18.SetDefinitionS</StreamLocation>
+<ExtentSize>100000</ExtentSize>
+<Data name="SetDefinitionDefaultData">
+<Value name="1">
+<Value>%%CLASSNAME</Value>
+</Value>
+<Value name="2">
+<Value>DomainId</Value>
+</Value>
+<Value name="3">
+<Value>Name</Value>
+</Value>
+<Value name="4">
+<Value>Entities</Value>
+</Value>
+</Data>
+</Storage>
+</Class>
+</Export>

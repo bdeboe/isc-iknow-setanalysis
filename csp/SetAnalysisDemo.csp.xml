@@ -1,0 +1,224 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Export generator="Cache" version="25">
+<CSP name="SetAnalysisDemo.csp" application="/csp/setanalysis/" default="1"><![CDATA[
+<!DOCTYPE html>
+<html ng-app="conceptsApp">
+  <head>
+    <title>iKnow Set Analysis demo</title>
+    <link rel="stylesheet" type="text/css" href="nglib/bootstrap/css/bootstrap.min.css" />
+    <style type="text/css">
+    .negation {
+	    color: red;
+    }
+    
+    .entity {
+	    font-weight: bold;
+	    color: DarkGreen;
+    }
+    
+    .entityInSet1 {
+	    font-weight: bold;
+	    color: DarkGreen;
+    }
+    .entityInSet2 {
+	    font-weight: bold;
+	    color: Navy;
+    }
+   </style>
+ </head>
+ <body style="padding: 15px">
+  <div class="container" ng-controller="DomainController">
+  
+     <ul class="nav nav-tabs" id="myTabs">
+       <li class="active"><a href="SetAnalysisDemo.csp#table" data-toggle="tab" aria-expanded="true">Table</a></li>
+       <li class=""><a href="SetAnalysisDemo.csp#concepts" data-toggle="tab" aria-expanded="false">Concepts</a></li>
+       <li class=""><a href="SetAnalysisDemo.csp#sets" data-toggle="tab" aria-expanded="false">Sets</a></li>
+     </ul>
+
+     <div id="myTabContent" class="tab-content" ng-controller="ConceptsController">
+       
+	   <div class="tab-pane fade  active in" id="table" ng-controller="SourceController as sc">
+	    <div >
+	      <div class="well">
+	        <label>
+	          <input type="text" ng-model="criteria"></input>&nbsp;<span class="glyphicon glyphicon-search"></span>
+	        </label>
+	        <label class="pull-right">
+	         <div ng-click="sc.getSources()"><a class="icon-link" style="cursor: pointer;"><span class="glyphicon glyphicon-refresh"></span> </a>
+	         </div>
+	        </label>
+	      </div>
+	      <table class="table table-hover">
+	        <thead>
+	          <th ng-repeat="md in mdData" ng-click="sort(md);">{{md}}
+	            <i ng-class="{'glyphicon glyphicon-chevron-up': isSortUp(md), 'glyphicon glyphicon-chevron-down': isSortDown(md)}"></i>
+	          </th>
+	          <th>FullText</th>
+	          <th>Sets</th>
+	        </thead>
+	        <tr ng-repeat="src in srcData | filter:criteria | orderBy:sortField:reverse | limitTo:100">  
+	          <td ng-repeat="md in mdData">{{src[md]}}</td>
+	          <td ng-bind-html="src.FullText"></td>
+	          <td><label ng-repeat="s in src.Sets" >{{s.Name}}</label></td>
+	        </tr>
+		   </table>
+		 </div>
+	   </div> <!--tabpane sources-->
+	   
+       <div class="tab-pane fade" id="concepts">
+        <br>
+          <div class="row">
+		   <div class="col-md-4">     
+		     <input type="checkbox" ng-model="onlyUnknown" ng-change="refreshConcepts()"> Filter to records not yet included in a set
+           </div>
+           <div class="col-md-4">
+              Similar of &nbsp;<input type="text" id="inputConcept" placeholder="Concept fragment" ng-model="autocomplete" ng-change="getAutocomplete()">
+          </div> 
+           <div class="col-md-4">
+              <input type="text"  id="inputSet" placeholder="Set name" ng-model="SetName">
+              <button type="submit" ng-click="saveSet(SetName)" class="btn btn-primary btn-sm" style="margin-left: 15px;">Save</button>
+              <button type="submit" ng-click="clearForm()" class="btn btn-warning btn-sm" style="margin-left: 15px;">Clear</button>
+           </div> 
+        </div>
+   
+        <div class="row">&nbsp;</div>
+        
+	   	 <div class="row">
+		   <div class="col-md-4">
+	         <div class="panel panel-primary">
+	           <div class="panel-heading">Concepts</div>
+	           <div class="panel-body" style="max-height: 600px;overflow-y: scroll;">
+                 <table class="table table-hover">
+                    <tr ng-repeat="concept in concepts">  
+	                  <td ng-click="selectConcept(concept)">{{concept.EntityValue}}</td>
+	                  <td>{{concept.Spread}}</td>
+	                </tr>
+	             </table>
+ 		       </div>
+	 		 </div>
+           </div> 
+           <div class="col-md-4">
+		     <div class="row">
+		       <div class="col-md-12">
+	             <div class="panel panel-primary">
+	               <div class="panel-heading">Similar</div>
+	               <div class="panel-body" style="max-height: 600px;overflow-y: scroll;">
+                     <table class="table table-hover">
+                       <tr ng-repeat="similarConcept in similar" ng-class="{'success': isSelected($index)}">  
+	                     <td ng-click="selectSimilar(similarConcept, $index)">{{similarConcept.EntityValue}}</td>
+	                     <td>
+	                      <div ng-show="!similarConcept.canRemove">{{similarConcept.Spread}}</div>
+	                      <div ng-show="similarConcept.canRemove">
+	                       <span class="glyphicon glyphicon-trash" style="cursor:pointer;" 
+	                       		 title="Remove from set" ng-click="removeEntityFromSet(similarConcept);"></span>
+	                      </div>
+	                     </td>
+	                   </tr>
+	                 </table>
+ 		           </div>
+	 		     </div>
+               </div> 
+             </div> 
+          </div> 
+          <div class="col-md-4">
+	         <div class="panel panel-primary">
+	           <div class="panel-heading">Source</div>
+	           <div class="panel-body" style="max-height: 600px;overflow-y: scroll;">
+                 <table class="table table-hover">
+                    <tr ng-repeat="source in sources">  
+	                  <td>
+	                    <div ng-bind-html="source.FullText"></div>
+	                  </td>
+	                </tr>
+	             </table>
+ 		       </div>
+	 		 </div>
+           </div> 
+
+         </div>
+       </div>
+
+	   <div class="tab-pane fade" id="sets">
+        <div class="row">&nbsp;</div>
+	   	   <div class="row">
+		     <div class="col-md-5">
+	             <div class="panel panel-primary">
+	               <div class="panel-heading">Sets</div>
+	               <div class="panel-body" style="max-height: 470px;overflow-y: scroll;">
+                     <table class="table table-hover">
+			           <thead>
+			             <th>Set</th>
+			             <th>Sources</th>
+			             <th>Overlap</th>
+			             <th></th>
+			             <th></th>
+			           </thead>
+                       <tr ng-repeat="set in sets">  
+	                     <td ng-click="selectSet(set, $index)" ng-class="{'success': isSelectedSet(set)}">{{set.Name}}</td>
+	                     <td>{{set.Sources}}</td>
+	                     <td ng-class="{'warning':isWarning(set.Overlap)}" ng-click="showSourcesBySet(set, set.OverlapSet)">{{set.Overlap}}</td>
+                         <td ng-click="editSet(set, $index)">
+                           <span class="glyphicon glyphicon-pencil" style="cursor:pointer;" title="Edit this set"></span>
+                         </td>
+                         <td ng-click="deleteSet(set, $index)">
+                           <span class="glyphicon glyphicon-trash" style="cursor:pointer;" title="Drop this set"></span>
+                         </td>
+	                   </tr>
+	                 </table>
+	               </div>
+	             </div>
+	             <div class="panel panel-primary">
+	               <div class="panel-heading">Sources</div>
+	               <div class="panel-body" style="max-height: 470px;overflow-y: scroll;">
+	                   <table class="table">
+	                   <tr>
+	                     <td>Total Sources</td>
+	                     <td>{{totalSources}}</td>
+	                   </tr>
+	                   <tr>
+	                     <td>Total in Sets</td>
+	                     <td>{{totalInSets}}</td>
+	                   </tr>
+	                   <tr>
+	                     <td>Total not in Sets</td>
+	                     <td>{{totalNotInSets}}</td>
+	                   </tr>
+	                 </table>
+ 		           </div>
+	 		     </div>
+		     </div>
+		     <div class="col-md-7">
+	             <div class="panel panel-primary">
+	               <div class="panel-heading">{{overlapSourcesRole}}</div>
+	               <div class="panel-body" style="max-height: 470px;overflow-y: scroll;">
+                     <table class="table table-hover">
+	                    <tr ng-repeat="source in overlapSources">  
+		                  <td>
+		                  {{source.SourceId}}: 
+		                    <div ng-bind-html="source.FullText"></div>
+		                  </td>
+		                </tr>
+	                 </table>
+	               </div> 
+	             </div> 
+		     </div>
+	       </div> 
+	   </div>
+
+
+
+
+      </div> <!--myTabContent-->
+
+
+    <script type="text/javascript" src="nglib/jquery-1.9.0.min.js"></script>
+    <script type="text/javascript" src="nglib/angular.min.js"></script>  <!--general angular framework-->
+    <script type="text/javascript" src="nglib/bootstrap/js/bootstrap.min.js"></script>  <!--twitter bootstrap framework -->
+    <script type="text/javascript" src="nglib/angular-resource.min.js"></script>  <!--angular tools for resources (like $resource for rest)  -->
+    <script type="text/javascript" src="nglib/angular-sanitize.min.js"></script>  <!--angular tools for sanitize (html safe output like $sce -->
+    <script type="text/javascript" src="SetAnalysisDemo.js"></script>
+   </div> <!--container-->
+  </body>
+</html>
+]]></CSP>
+</Export>

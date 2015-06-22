@@ -1,0 +1,678 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Export generator="Cache" version="25">
+<Class name="Demo.SetAnalysis.RestHandler">
+<IncludeCode>%IKPublic</IncludeCode>
+<IncludeGenerator>%IKPublic</IncludeGenerator>
+<Super>%CSP.REST</Super>
+<TimeCreated>63656,39452.545491</TimeCreated>
+
+<Parameter name="IKPAGESIZE">
+<Type>INTEGER</Type>
+<Default>1000</Default>
+</Parameter>
+
+<Parameter name="IKPFILTERMODE">
+<Description>
+As the app only shows spread, this filter mode will do all we need with less work than
+the classic $$$FILTERALLANDSORT</Description>
+<Type>INTEGER</Type>
+<Expression>$$$FILTERSPREADANDSORT</Expression>
+</Parameter>
+
+<Parameter name="JSONFORMATPARAMS">
+<Type>STRING</Type>
+<Default>aelotwu</Default>
+</Parameter>
+
+<XData name="UrlMap">
+<Data><![CDATA[
+<Routes>
+
+<Route Url="/Domain/:domain/Sources" Method="GET" Call="GetSources"/>
+<Route Url="/Domain/:domain/Sources/Entity/:entity" Method="GET" Call="GetSourcesByEntity"/>
+<Route Url="/Domain/:domain/Sources/Set/:setId" Method="GET" Call="GetSourcesBySet"/>
+<Route Url="/Domain/:domain/Sources/Set/:setId1/:setId2" Method="GET" Call="GetSourcesBySetOverlap"/>
+
+<Route Url="/Domain/:domain/Entities" Method="GET" Call="GetEntitiesTop"/>
+<Route Url="/Domain/:domain/Entities/:string" Method="GET" Call="GetEntitiesSimilar"/>
+
+<Route Url="/Domain/:domain/Sets/Info" Method="GET" Call="GetSetInfo"/>
+<Route Url="/Domain/:domain/Sets/Save" Method="POST" Call="SaveSet"/>
+<Route Url="/Domain/:domain/Sets/Delete" Method="POST" Call="DeleteSet"/>
+<Route Url="/Domain/:domain/Sets/RemoveEntity" Method="POST" Call="RemoveEntityFromSet"/>
+
+<Route Url="/Domain/:domain/Sets/Overlaps/:setId" Method="GET" Call="GetSetOverlap"/>
+</Routes>
+]]></Data>
+</XData>
+
+<Method name="GetSources">
+<Description>
+Retrieves all sources (including full text and metadata) in the domain and prints them as JSON</Description>
+<ClassMethod>1</ClassMethod>
+<FormalSpec>pDomainId:%Integer</FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	set tSC = $$$OK
+	try {
+		set tSC = ..GetSourcesInternal(pDomainId)
+		quit:$$$ISERR(tSC)
+	} catch (ex) {
+		set tSC = ex.AsStatus()
+	}
+	quit ..ErrorHandler(tSC)
+]]></Implementation>
+</Method>
+
+<Method name="GetSourcesByEntity">
+<Description><![CDATA[
+Retrieves all sources (including full tex)t in the domain containing <var>pEntity</var> and prints them as JSON]]></Description>
+<ClassMethod>1</ClassMethod>
+<FormalSpec>pDomainId:%Integer,pEntity:%String</FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	set tSC = $$$OK
+	try {
+		set tFilter = ##class(%iKnow.Filters.ContainsEntityFilter).%New(pDomainId, $lb(pEntity))
+		
+		if $g(%request.Data("SourceFilter",1)) {
+			set tGroupFilter = ##class(%iKnow.Filters.GroupFilter).%New(pDomainId, "AND")
+			do tGroupFilter.AddSubFilter(tFilter)
+			do tGroupFilter.AddSubFilter(..GetNotInSetFilter(pDomainId, .tSC))
+			quit:$$$ISERR(tSC)
+			set tFilter = tGroupFilter
+		}
+		
+		set tSC = ..GetSourcesInternal(pDomainId, tFilter, pEntity, .tHighlight, 0)
+		quit:$$$ISERR(tSC)
+		
+    } catch (ex) {
+        set tSC=ex.AsStatus()
+    }
+	quit ..ErrorHandler(tSC)
+]]></Implementation>
+</Method>
+
+<Method name="GetSourcesBySet">
+<Description><![CDATA[
+Retrieves the list of sources in <var>pSetId</var> and prints them to JSON.]]></Description>
+<ClassMethod>1</ClassMethod>
+<FormalSpec>pDomainId:%Integer,pSetId:%Integer</FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	set tSC = $$$OK
+	try {
+		set tSet = ##class(SetDefinition).%OpenId(pSetId)
+		
+		// retrieve entities of both sets to highlight
+		for i = 1:1:tSet.Entities.Count() {
+			set tEntity = tSet.Entities.GetAt(i)
+			continue:tEntity=""
+			set tHighlight("ENTITY", tEntity) = "<span class=""entityInSet1"" title=""entity '"_$zcvt(tEntity,"O","HTML")_"' indicates set '"_tSet.Name_"'"">"
+		}
+		
+		set tSC = ..GetSourcesInternal(pDomainId, tSet.GetFilter(),, .tHighlight, 0)
+		quit:$$$ISERR(tSC)
+		
+	} catch (ex) {
+		set tSC = ex.AsStatus()
+	}
+	quit ..ErrorHandler(tSC)
+]]></Implementation>
+</Method>
+
+<Method name="GetSourcesBySetOverlap">
+<Description><![CDATA[
+Retrieves the list of sources part of both <var>pSetId1</var> and <var>pSetId2</var> and prints them to JSON.]]></Description>
+<ClassMethod>1</ClassMethod>
+<FormalSpec>pDomainId:%Integer,pSetId1:%Integer,pSetId2:%Integer</FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	set tSC = $$$OK
+	try {
+		set tSet1 = ##class(SetDefinition).%OpenId(pSetId1)
+		set tSet2 = ##class(SetDefinition).%OpenId(pSetId2)
+		
+		set tFilter = ##class(%iKnow.Filters.GroupFilter).%New(pDomainId, $$$GROUPFILTERAND)
+		do tFilter.AddSubFilter(tSet1.GetFilter())
+		do tFilter.AddSubFilter(tSet2.GetFilter())
+		
+		// retrieve entities of both sets to highlight
+		for i = 1:1:tSet1.Entities.Count() {
+			set tEntity = tSet1.Entities.GetAt(i)
+			continue:tEntity=""
+			set tHighlight("ENTITY", tEntity) = "<span class=""entityInSet1"" title=""entity '"_$zcvt(tEntity,"O","HTML")_"' indicates set '"_tSet1.Name_"'"">"
+		}
+		for i = 1:1:tSet2.Entities.Count() {
+			set tEntity = tSet2.Entities.GetAt(i)
+			continue:tEntity=""
+			set tHighlight("ENTITY", tEntity) = "<span class=""entityInSet2"" title=""entity '"_$zcvt(tEntity,"O","HTML")_"' indicates set '"_tSet2.Name_"'"">"
+		}
+		
+		set tSC = ..GetSourcesInternal(pDomainId, tFilter,, .tHighlight, 0)
+		quit:$$$ISERR(tSC)
+		
+	} catch (ex) {
+		set tSC = ex.AsStatus()
+	}
+	quit ..ErrorHandler(tSC)
+]]></Implementation>
+</Method>
+
+<Method name="GetSourcesInternal">
+<Description>
+Utility method to print a list of sources to JSON</Description>
+<ClassMethod>1</ClassMethod>
+<FormalSpec><![CDATA[pDomainId:%Integer,pFilter:%iKnow.Filters.Filter="",pFilterByEntity:%String="",&pHighlight,pGetMetadata:%Boolean=1]]></FormalSpec>
+<Private>1</Private>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	set tSC = $$$OK
+	try {
+		set:$data(%response) %response.ContentType="application/json"
+		
+		// fetch SetDefinition objects for set membership metadata
+		set tSets = 0
+		if (pGetMetadata) {
+			set tSQL = "SELECT ID FROM Demo_SetAnalysis.SetDefinition WHERE DomainId = "_pDomainId
+			set tResult = ##class(%SQL.Statement).%ExecDirect(,tSQL)
+			while tResult.%Next() {
+				set tSets($i(tSets)) = ##class(SetDefinition).%OpenId(tResult.%Get("ID"))
+			}
+			kill tResult
+		}
+		
+		set tJSON = ##class(%ZEN.proxyObject).%New()
+		set tJSON.Sources = ##class(%ListOfObjects).%New()
+		set tSC = ##class(%iKnow.Queries.SourceAPI).GetByDomain(.tResult, pDomainId, 1, ..#IKPAGESIZE,  pFilter)
+		quit:$$$ISERR(tSC)
+		set i = ""
+		for {
+			set i = $order(tResult(i), 1, tData)
+			quit:i=""
+			
+			set tSrcId = $lg(tData,1)
+			set tProxy = ##class(%ZEN.proxyObject).%New()
+			set tProxy.SourceId = tSrcId
+			
+			// add fulltext
+			set tProxy.FullText = ..GetHighlightedSource(pDomainId, tSrcId, pFilterByEntity,, .pHighlight, .tSC)
+			quit:$$$ISERR(tSC)
+			
+			// add metadata
+			if pGetMetadata {
+				set tSC = ##class(%iKnow.Queries.MetadataAPI).GetValuesById(.tMetadata, pDomainId, tSrcId)
+				quit:$$$ISERR(tSC)
+				set j = ""
+				for {
+					set j = $order(tMetadata(j),1,tMD)
+					quit:j=""
+					set tFieldName = $li(tMD,2)
+					continue:tFieldName="DateIndexed"
+					set $property(tProxy,tFieldName) = $lg(tMD,3)
+				}
+				
+				// get sets for source
+				set tProxy.Sets = ##class(%ListOfObjects).%New() 
+				for j = 1:1:tSets {
+					if tSets(j).GetFilter().IsFiltered(tSrcId) {
+						do tProxy.Sets.Insert(tSets(j))
+					}
+				}
+			}
+			
+			do tJSON.Sources.Insert(tProxy)
+		}
+		
+		do tJSON.%ToJSON(,..#JSONFORMATPARAMS)
+	} catch (ex) {
+		set tSC = ex.AsStatus()
+	}
+	quit ..ErrorHandler(tSC)
+]]></Implementation>
+</Method>
+
+<Method name="GetHighlightedSource">
+<Description><![CDATA[
+Retrieves a highlighted summary of the text in source <var>pSourceId</var>, optionally filtered to the
+sentences containing <var>pFilterByEntity</var>. At most <var>pMaxSentences</var> will be returned.
+Any markup in <var>pHighlight</var> is appended with default highlighting of negations]]></Description>
+<ClassMethod>1</ClassMethod>
+<FormalSpec><![CDATA[pDomainId:%Integer,pSourceId:%Integer,pFilterByEntity:%String="",pMaxSentences:%Integer=5,&pHighlight,*pSC:%Status=$$$OK]]></FormalSpec>
+<ReturnType>%String</ReturnType>
+<Implementation><![CDATA[
+	set pSC = $$$OK, tString = ""
+	try {
+		// default highlighting
+		set tHighlight("ATTRIBUTE", $$$IKATTNEGATION) = "<font class=""negation"">"
+		set tHighlight("ATTRIBUTEWORDS", $$$IKATTNEGATION) = "<u>"
+		
+		if (pFilterByEntity'="") {
+			set tHighlight("ENTITY", pFilterByEntity) = "<span class=""entity"" title=""entity '"_$zcvt(pFilterByEntity,"O","HTML")_"'"">"
+			set pSC = ##class(%iKnow.Queries.SentenceAPI).GetByEntities(.tSentences, pDomainId, pFilterByEntity, $lb(pSourceId), 1, pMaxSentences)
+			set tSentIdIndex = 3
+		} else {
+			set pSC = ##class(%iKnow.Queries.SourceAPI).GetSummary(.tSentences, pDomainId, pSourceId, pMaxSentences)
+			set tSentIdIndex = 1
+		}
+		quit:$$$ISERR(pSC)
+		
+		// append/override with explicit highlighting requirements
+		merge tHighlight = pHighlight
+		
+		set tSource = ##class(%iKnow.Objects.Source).PKINDEXOpen(pDomainId, pSourceId)
+		set tPrevSentId = tSource.FirstSentenceId-1, tSentId=""
+		set i = ""
+		for {
+			set i = $order(tSentences(i), 1, tSentData)
+			quit:i=""
+			
+			set tSentId = $lg(tSentData,tSentIdIndex)
+			
+			set:(tPrevSentId'=(tSentId-1)) tString = tString_" ... "
+			set tPrevSentId = tSentId
+			
+			set tString = tString _ ##class(%iKnow.Queries.SentenceAPI).GetHighlighted(pDomainId, tSentId, .tHighlight,,, .pSC)
+			quit:$$$ISERR(pSC)
+		}
+		if tSentId'=(tSource.FirstSentenceId+tSource.SentenceCount-1) {
+			set tString = tString _ " ..."
+		}
+		
+	} catch (ex) {
+		set pSC = ex.AsStatus()
+	}
+	quit tString
+]]></Implementation>
+</Method>
+
+<Method name="GetEntitiesTop">
+<Description>
+Retrieves the top entities in the domain and prints them to JSON</Description>
+<ClassMethod>1</ClassMethod>
+<FormalSpec>pDomainId:%Integer</FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	set tSC = $$$OK
+	try {
+		if $g(%request.Data("SourceFilter",1)) {
+			set tFilter = ..GetNotInSetFilter(pDomainId, .tSC)
+			quit:$$$ISERR(tSC)
+		} else {
+			set tFilter = ""
+		}
+		
+		set tSC = ##class(%iKnow.Queries.EntityAPI).GetTop(.tResult, pDomainId, 1, ..#IKPAGESIZE, tFilter, ..#IKPFILTERMODE)
+		quit:$$$ISERR(tSC)
+		
+		set:$data(%response) %response.ContentType="application/json"
+		set tJSON = ##class(%ZEN.proxyObject).%New()
+		
+		set tSC = ..EntityResultToJSON(.tResult, .tEntities)
+		quit:$$$ISERR(tSC)
+		
+		set tJSON.Entities = tEntities
+		do tJSON.%ToJSON(,..#JSONFORMATPARAMS)
+		
+	} catch (ex) {
+		set tSC = ex.AsStatus()
+	}
+	quit ..ErrorHandler(tSC)
+]]></Implementation>
+</Method>
+
+<Method name="GetEntitiesSimilar">
+<Description><![CDATA[
+Retrieves the top entities similar to <var>pString</var> and prints them to JSON]]></Description>
+<ClassMethod>1</ClassMethod>
+<FormalSpec>pDomainId:%Integer,pString:%String(MAXLEN="")</FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	set tSC = $$$OK
+	try {
+		if $g(%request.Data("SourceFilter",1)) {
+			set tFilter = ..GetNotInSetFilter(pDomainId, .tSC)
+			quit:$$$ISERR(tSC)
+		} else {
+			set tFilter = ""
+		}
+		
+		set tSC = ##class(%iKnow.Queries.EntityAPI).GetSimilar(.tResult, pDomainId, pString, 1, ..#IKPAGESIZE, tFilter, ..#IKPFILTERMODE)
+		quit:$$$ISERR(tSC)
+		
+		set:$data(%response) %response.ContentType="application/json"
+		set tJSON = ##class(%ZEN.proxyObject).%New()
+		set tJSON.Seed = pString
+		
+		set tSC = ..EntityResultToJSON(.tResult, .tEntities)
+		quit:$$$ISERR(tSC)
+		
+		set tJSON.Entities = tEntities
+		do tJSON.%ToJSON(,..#JSONFORMATPARAMS)
+		
+	} catch (ex) {
+		set tSC = ex.AsStatus()
+	}
+	quit ..ErrorHandler(tSC)
+]]></Implementation>
+</Method>
+
+<Method name="EntityResultToJSON">
+<Description>
+Utility method for converting an array of entities to JSON</Description>
+<ClassMethod>1</ClassMethod>
+<FormalSpec><![CDATA[&pResult,*pJSONArray]]></FormalSpec>
+<Private>1</Private>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	set tSC = $$$OK
+	try {
+		set i = "", pJSONArray = ##class(%ListOfObjects).%New()
+		for {
+			set i = $order(pResult(i), 1, tData)
+			quit:i=""
+			
+			set tProxy = ##class(%ZEN.proxyObject).%New()
+			set tProxy.EntityValue = $lg(tData,2)
+			set tProxy.Frequency = $lg(tData,3)
+			set tProxy.Spread = $lg(tData,4)
+			do pJSONArray.Insert(tProxy)
+		}
+	} catch (ex) {
+		set tSC = ex.AsStatus()
+	}
+	quit tSC
+]]></Implementation>
+</Method>
+
+<Method name="GetSetInfo">
+<Description><![CDATA[
+Retrieves information about all sets stored for domain <var>pDomain</var>
+Writes the following JSON output:
+<blockquote><pre>{
+	Sets: [ 
+				{
+					SetId: 123,
+					Name: 'abc',
+					Entities: [ 'xyz', 'def', ... ]
+				},... ],
+	TotalInSets: x,
+	TotalNotInSets: x,
+	TotalSources: x
+}</pre></blockquote>]]></Description>
+<ClassMethod>1</ClassMethod>
+<FormalSpec>pDomainId:%Integer</FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	set tSC = $$$OK
+	try {
+		set:$data(%response) %response.ContentType="application/json"
+		set tJSON = ##class(%ZEN.proxyObject).%New()
+		
+		set tSQL = "SELECT ID FROM Demo_SetAnalysis.SetDefinition WHERE DomainId = "_pDomainId
+		set tResult = ##class(%SQL.Statement).%ExecDirect(,tSQL)
+		set tJSON.Sets = ##class(%ListOfObjects).%New()
+		while tResult.%Next() {
+			set tSetDef = ##class(SetDefinition).%OpenId(tResult.%Get("ID"))
+			set tProxy = ##class(%ZEN.proxyObject).%New()
+			set tProxy.SetId = tResult.%Get("ID")
+			set tProxy.Name = tSetDef.Name
+			set tProxy.Entities = tSetDef.Entities
+			set tProxy.Sources = tSetDef.GetFilter().FilteredSourceCount
+			do tJSON.Sets.Insert(tProxy)
+		}
+		
+		// now get the counts
+		set tJSON.TotalSources = ##class(%iKnow.Queries.SourceAPI).GetCountByDomain(pDomainId)
+		set tJSON.TotalNotInSets = ..GetNotInSetFilter(pDomainId, .tSC).FilteredSourceCount
+		quit:$$$ISERR(tSC)
+		set tJSON.TotalInSets = tJSON.TotalSources - tJSON.TotalNotInSets
+		
+		// write JSON
+		do tJSON.%ToJSON(,..#JSONFORMATPARAMS)
+	} catch (ex) {
+		set tSC = ex.AsStatus()
+	}
+	quit ..ErrorHandler(tSC)
+]]></Implementation>
+</Method>
+
+<Method name="SaveSet">
+<Description><![CDATA[
+Saves the posted set information to a <class>SetDefintion</class>, appending the supplied list of
+entities to any that might already exist for the set specified in the request.
+Accepts the following JSON (as HTTP POST content):
+<blockquote><pre>{
+		SetId: 123,
+		Name: 'name',
+		Entities: [ 'ent1', 'ent2' ]
+}</pre></blockquote>]]></Description>
+<ClassMethod>1</ClassMethod>
+<FormalSpec>pDomainId:%Integer</FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	set tSC = $$$OK
+	try {
+		set tJSONString = ""
+		while '%request.Content.AtEnd {
+			set tJSONString = tJSONString_$zcvt(%request.Content.ReadLine(),"I","UTF8")
+		}
+		set tSC = ##class(%ZEN.Auxiliary.jsonProvider).%ConvertJSONToObject(tJSONString,,.tJSON)
+		quit:$$$ISERR(tSC)
+		
+		// retrieve or instantiate set
+		set:tJSON.SetId tSetDef = ##class(SetDefinition).%OpenId(tJSON.SetId)
+		set:$g(tSetDef)="" tSetDef = ##class(SetDefinition).NameIdxOpen(pDomainId, tJSON.Name)
+		if tSetDef="" {
+			set tSetDef = ##class(SetDefinition).%New()
+			set tSetDef.Name = tJSON.Name
+			set tSetDef.DomainId = pDomainId
+		}
+		
+		// check which entities are already in there
+		for i = 1:1:tSetDef.Entities.Count() {
+			set tEntity = tSetDef.Entities.GetAt(i)
+			set tCurrentEntities(tEntity)=""
+		}
+		
+		// append entities
+		for i = 1:1:tJSON.Entities.Count() {
+			set tEntity = tJSON.Entities.GetAt(i)
+			do:'$d(tCurrentEntities(tEntity)) tSetDef.Entities.Insert(tEntity)
+		}
+		
+		set tSC = tSetDef.%Save()
+		quit:$$$ISERR(tSC)
+		
+	} catch (ex) {
+		set tSC = ex.AsStatus()
+	}
+	quit ..ErrorHandler(tSC)
+]]></Implementation>
+</Method>
+
+<Method name="RemoveEntityFromSet">
+<Description><![CDATA[
+Removes a single entity from a set.
+Accepts the following JSON (as HTTP POST content):
+<blockquote><pre>{
+		SetId: 123,
+		Name: 'name',
+		RemoveEntity: 'ent1'
+}</pre></blockquote>]]></Description>
+<ClassMethod>1</ClassMethod>
+<FormalSpec>pDomainId:%Integer</FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	set tSC = $$$OK
+	try {
+		set tJSONString = ""
+		while '%request.Content.AtEnd {
+			set tJSONString = tJSONString_$zcvt(%request.Content.ReadLine(),"I","UTF8")
+		}
+		set tSC = ##class(%ZEN.Auxiliary.jsonProvider).%ConvertJSONToObject(tJSONString,,.tJSON)
+		quit:$$$ISERR(tSC)
+		
+		// retrieve set
+		set:tJSON.SetId tSetDef = ##class(SetDefinition).%OpenId(tJSON.SetId)
+		set:$g(tSetDef)="" tSetDef = ##class(SetDefinition).NameIdxOpen(pDomainId, tJSON.Name)
+		quit:tSetDef=""
+		
+		// check which entities are already in there
+		for i = 1:1:tSetDef.Entities.Count() {
+			if (tJSON.RemoveEntity=tSetDef.Entities.GetAt(i)) {
+				do tSetDef.Entities.RemoveAt(i)
+				quit
+			}
+		}
+		
+		set tSC = tSetDef.%Save()
+		quit:$$$ISERR(tSC)
+		
+	} catch (ex) {
+		set tSC = ex.AsStatus()
+	}
+	quit ..ErrorHandler(tSC)
+]]></Implementation>
+</Method>
+
+<Method name="DeleteSet">
+<Description><![CDATA[
+Deletes a <class>SetDefinition</class> instance from the table.
+Accepts the following JSON (as HTTP POST content):
+<blockquote><pre>{
+		SetId: 123
+}</pre></blockquote>]]></Description>
+<ClassMethod>1</ClassMethod>
+<FormalSpec>pDomainId:%Integer</FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	set tSC = $$$OK
+	try {
+		set tJSONString = ""
+		while '%request.Content.AtEnd {
+			set tJSONString = tJSONString_$zcvt(%request.Content.ReadLine(),"I","UTF8")
+		}
+		set tSC = ##class(%ZEN.Auxiliary.jsonProvider).%ConvertJSONToObject(tJSONString,,.tJSON)
+		quit:$$$ISERR(tSC)
+		
+		set tSC = ##class(SetDefinition).%DeleteId(tJSON.SetId)
+		quit:$$$ISERR(tSC)
+	} catch (ex) {
+		set tSC = ex.AsStatus()
+	}
+	quit ..ErrorHandler(tSC)
+]]></Implementation>
+</Method>
+
+<Method name="GetSetOverlap">
+<Description><![CDATA[
+Retrieves the overlap information for <class>SetDefintion</class> <var>pSetId</var>, listing
+how many sources it has in common with all other sets.
+Writes the following JSON:
+<blockquote><pre>{
+	SetId: 123,
+	Name: 'abc',
+	Overlaps: [
+				{
+					SetId: 456,
+					Name: 'def',
+					Count: 789
+				},... ]
+}</pre></blockquote>]]></Description>
+<ClassMethod>1</ClassMethod>
+<FormalSpec>pDomainId:%Integer,pSetId:%Integer</FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	set tSC = $$$OK
+	try {
+		set:$data(%response) %response.ContentType="application/json"
+		
+		set tSetDef = ##class(SetDefinition).%OpenId(pSetId)
+		set tJSON = ##class(%ZEN.proxyObject).%New()
+		set tJSON.SetId = pSetId
+		set tJSON.Name = tSetDef.Name
+		
+		set tSQL = "SELECT ID FROM Demo_SetAnalysis.SetDefinition WHERE DomainId = "_pDomainId //_" AND ID != "_pSetId
+		set tResult = ##class(%SQL.Statement).%ExecDirect(,tSQL)
+		set tJSON.Overlaps = ##class(%ListOfObjects).%New()
+		while tResult.%Next() {
+			set tOtherSetDef = ##class(SetDefinition).%OpenId(tResult.%Get("ID"))
+			set tProxy = ##class(%ZEN.proxyObject).%New()
+			set tProxy.SetId = tResult.%Get("ID")
+			set tProxy.Name = tOtherSetDef.Name
+			
+			set tFilter = ##class(%iKnow.Filters.GroupFilter).%New(pDomainId,$$$GROUPFILTERAND)
+			do tFilter.AddSubFilter(tSetDef.GetFilter())
+			do tFilter.AddSubFilter(tOtherSetDef.GetFilter())
+			set tProxy.Count = tFilter.FilteredSourceCount
+			
+			do tJSON.Overlaps.Insert(tProxy)
+		}
+		
+		// write JSON
+		do tJSON.%ToJSON(, ..#JSONFORMATPARAMS)
+	} catch (ex) {
+		set tSC = ex.AsStatus()
+	}
+	quit ..ErrorHandler(tSC)
+]]></Implementation>
+</Method>
+
+<Method name="GetNotInSetFilter">
+<Description><![CDATA[
+Utility method to retrieve a <class>%iKnow.Filters.Filter</class> object representing all sources
+not part of any set.]]></Description>
+<Internal>1</Internal>
+<ClassMethod>1</ClassMethod>
+<FormalSpec>pDomainId:%Integer,*pSC:%Status</FormalSpec>
+<ReturnType>%iKnow.Filters.Filter</ReturnType>
+<Implementation><![CDATA[
+	set pSC = $$$OK, tFilter=""
+	try {
+		set tAllEntities=""
+		set tResult = ##class(%SQL.Statement).%ExecDirect(,"SELECT $listtostring(Entities) FROM Demo_SetAnalysis.SetDefinition WHERE DomainId = "_pDomainId)
+		while tResult.%Next() {
+			set tEntities = tResult.%GetData(1), tCount = $l(tEntities,",")
+			for i = 1:1:tCount {
+				set tEntity = $p(tEntities,",",i)
+				continue:tEntity=""
+				set tAllEntities = tAllEntities _ $lb(tEntity)
+			}
+		}
+		if '$d(tAllEntities) {
+			set tFilter = ##class(%iKnow.Filters.SourceIdFilter).%New(pDomainId, 0)
+		} else {
+			set tFilter = ##class(%iKnow.Filters.GroupFilter).%New(pDomainId,$$$GROUPFILTERAND,1) // =NOT
+			do tFilter.AddSubFilter(##class(%iKnow.Filters.ContainsEntityFilter).%New(pDomainId, .tAllEntities))
+		}
+	} catch (ex) {
+		set pSC = ex.AsStatus()
+	}
+	quit tFilter
+]]></Implementation>
+</Method>
+
+<Method name="ErrorHandler">
+<Description><![CDATA[
+Simple error handler, converting a <class>%Status</class> object to a JSON representation.]]></Description>
+<ClassMethod>1</ClassMethod>
+<FormalSpec>Stat:%Status</FormalSpec>
+<Private>1</Private>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	if $$$ISERR(Stat) {
+		set errorcode=$piece(##class(%SYSTEM.Status).GetErrorCodes(Stat),",")
+		set errormessage=##class(%SYSTEM.Status).GetOneStatusText(Stat)
+		set errobj=##class(%ZEN.proxyObject).%New()
+		set errobj.ErrorNum=errorcode
+		set errobj.ErrorMessage=errormessage
+		Set %response.ContentType="application/json"
+		Do ##class(%ZEN.Auxiliary.jsonProvider).%ObjectToJSON(errobj)
+		set errobj=""
+	}
+	quit $$$OK
+]]></Implementation>
+</Method>
+</Class>
+</Export>
