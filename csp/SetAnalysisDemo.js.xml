@@ -5,24 +5,33 @@
 
 var conceptsApp = angular.module('conceptsApp', ['ngResource', 'ngSanitize']);
 
- conceptsApp.controller('DomainController', ['$scope', function($scope) {
+ conceptsApp.controller('DomainController', ['$scope', 'restFeatures', function($scope, restFeatures) {
 	 
 	 // initialize ikDomain
-	 if (location.search === '') {
-		 alert('No domain specified in URL!');
-	 }
-	 $scope.ikDomain = location.search.substr(1).split('#')[0];
+	function initDomain() {
+		var domain = location.search.substr(1).split('#')[0];
+		if (!isNaN(parseInt(domain))) return parseInt(domain);
+		var regexp = /^([0-9]+)/;
+		var parsed = regexp.exec(domain);
+		if (parsed && (parsed.length>0) && !isNaN(parseInt(parsed[0]))) return parsed[0];
+		alert('No domain specified in URL!'); 
+		return 0;
+	}
+	$scope.ikDomain = initDomain();
 	 
-	 // common functions
-   
+	// retrieve capabilities
+   	function getFeatures() {
+       tempFeatures = restFeatures.query({domain:$scope.ikDomain},function(data) {
+	     $scope.Features = tempFeatures;
+	     delete tempFeatures;
+       });
+   	}
+   	getFeatures();
+   	
  }]);
 
  hostURL = function() {
-	var path = location.pathname;  //e.g. /csp/myNamespace/page.csp
-	var pathArray = path.split('/');
-	pathArray.splice(pathArray.length-1,1);
-	var cspPath = pathArray.join('/');
-    return "http://"+document.domain+":"+location.port+cspPath+"SetAnalysisDemo/Domain/:domain/"
+	 return location.href.split('/').slice(0,-1).join('/')+'/saREST/Domain/:domain/';
     };
  
   $('#myTabs a').click(function (e) {
@@ -77,6 +86,20 @@ function transformResponseHandler(data, header) {
 };
 
 
+ conceptsApp.factory('restFeatures', function ($resource) {
+    return $resource(
+		hostURL() + "Features", {}, {
+		query: { method: "GET", isArray: false,
+		         interceptor : {
+					response : resourceSuccessHandler,
+			        responseError : resourceErrorHandler
+			     },
+			     transformResponse : transformResponseHandler
+			   }
+		});
+   });
+   
+   
  conceptsApp.factory('restTop', function ($resource) {
     return $resource(
 		hostURL() + "Entities?SourceFilter=:sourceFilter", {}, {
@@ -102,10 +125,10 @@ function transformResponseHandler(data, header) {
 			   }
 		});
    }); //app.factory 'restSimilar'
-
- conceptsApp.factory('restSourcesByEntity', function ($resource) {
+   
+ conceptsApp.factory('restSentencesByEntity', function ($resource) {
     return $resource(
-		hostURL() + "Sources/Entity/:entity?SourceFilter=:sourceFilter", {}, {
+		hostURL() + "Sentences/Entity/:entity?SourceFilter=:sourceFilter", {}, {
 		query: { method: "GET", isArray: false,
 		         interceptor : {
 					response : resourceSuccessHandler,
@@ -130,6 +153,19 @@ function transformResponseHandler(data, header) {
  conceptsApp.factory('restSourcesByOverlap', function ($resource) {
     return $resource(
 		hostURL() + "Sources/Set/:setId1/:setId2", {}, {
+		query: { method: "GET", isArray: false,
+		         interceptor : {
+					response : resourceSuccessHandler,
+			        responseError : resourceErrorHandler
+			     },
+			     transformResponse : transformResponseHandler
+			   }
+		});		
+   });
+
+ conceptsApp.factory('restSentiment', function ($resource) {
+    return $resource(
+		hostURL() + "Sentiment", {}, {
 		query: { method: "GET", isArray: false,
 		         interceptor : {
 					response : resourceSuccessHandler,
@@ -203,7 +239,7 @@ function transformResponseHandler(data, header) {
 		});
    });
   
- conceptsApp.controller('ConceptsController', ['$scope', '$resource', 'restTop', 'restSimilar', 'restSourcesByEntity', 'restSourcesBySet', 'restSourcesByOverlap', 'restSaveSet', 'restSets', 'restDeleteSet', 'restGetOverlap', 'restUpdateSet', function($scope, $resource, restTop, restSimilar, restSourcesByEntity, restSourcesBySet, restSourcesByOverlap, restSaveSet, restSets, restDeleteSet, restGetOverlap, restUpdateSet) {
+ conceptsApp.controller('ConceptsController', ['$scope', '$resource', 'restTop', 'restSimilar', 'restSentencesByEntity', 'restSourcesBySet', 'restSourcesByOverlap', 'restSaveSet', 'restSets', 'restDeleteSet', 'restGetOverlap', 'restUpdateSet', 'restSentiment', function($scope, $resource, restTop, restSimilar, restSentencesByEntity, restSourcesBySet, restSourcesByOverlap, restSaveSet, restSets, restDeleteSet, restGetOverlap, restUpdateSet, restSentiment) {
 	 
    $scope.getSets = function() {
      $scope.selectedSet = '';
@@ -316,14 +352,18 @@ function transformResponseHandler(data, header) {
      });
    };
    
+   $scope.getSentences = function (conceptValue) {
+     tempSentences = restSentencesByEntity.query({domain:$scope.ikDomain, entity:conceptValue},function(data) {
+	     $scope.sentences = tempSentences.Sentences;
+	     delete tempSentences;
+     });
+   }
+   
    $scope.selectConcept = function (concept) {
 	 $scope.autocomplete = '';
      $scope.clearForm();
 	 $scope.getSimilar(concept.EntityValue);
-     tempSources = restSourcesByEntity.query({domain:$scope.ikDomain, entity:concept.EntityValue},function(data) {
-	     $scope.sources = tempSources.Sources;
-	     delete tempSources;
-     });
+	 $scope.getSentences(concept.EntityValue);
    };
   
    $scope.isSelected = function (index) {
@@ -340,10 +380,7 @@ function transformResponseHandler(data, header) {
 		 // if not in set-editing mode, un/select
 		 $scope.similar[index].selected = !$scope.similar[index].selected;
 	 }
-     tempSources = restSourcesByEntity.query({domain:$scope.ikDomain, entity:concept.EntityValue},function(data) {
-	     $scope.sources = tempSources.Sources;
-	     delete tempSources;
-     });
+	 $scope.getSentences(concept.EntityValue);
    };
 
     
@@ -371,6 +408,57 @@ function transformResponseHandler(data, header) {
    // initial populate of concepts table
    $scope.refreshConcepts();
    
+   
+	  
+	  $scope.getSentiment = function() {
+		  tempSentiment = restSentiment.query({domain:$scope.ikDomain}, function(data) {
+			  $scope.sentimentData = tempSentiment.Entities;
+			  $scope.hasSentimentData = (tempSentiment.Entities.length>0);
+			  delete tempSentiment;
+		  });
+	  };
+	  
+	  $scope.getSentiment();
+	  
+	  this.sortField = 'TotalFrequency';
+	  this.reverse = true;
+	  
+	  this.sort = function (fieldName) {
+		  if (this.sortField === fieldName) {
+		    this.reverse = !this.reverse;
+		  } else {
+		    this.sortField = fieldName;
+		    this.reverse = false;
+		  }
+	  };
+	  
+	  this.isSortUp = function (fieldName) {
+		  return this.sortField === fieldName && !this.reverse;
+	  };
+	         
+	  this.isSortDown = function (fieldName) {
+		  return this.sortField === fieldName && this.reverse;
+	  };
+	  
+	  this.sentimentClass = function (entity) {
+		  if ((entity.TotalNegative==0) && (entity.TotalPositive>0)) { return 'text-success'; }
+		  if ((entity.TotalNegative>0) && (entity.TotalPositive>0)) { return 'text-warning'; }
+		  if ((entity.TotalNegative>0) && (entity.TotalPositive==0)) { return 'text-danger'; }
+		  
+		  return '';
+	  }
+	  
+	  $scope.sentFilterAtt = '';
+	  $scope.sentenceCriteria = { };
+	  
+	  $scope.selectSentimentFilter = function (att) {
+		  $scope.sentFilterAtt=att;
+		  switch (att) {
+			  case '': $scope.sentenceCriteria = { }; break;
+			  case 'pos': $scope.sentenceCriteria = { HasPositive: 1 }; break;
+			  case 'neg': $scope.sentenceCriteria = { HasNegative: 1 }; break;
+		  }
+	  }
  }]);
 
  conceptsApp.factory('restSources', function ($resource) {
@@ -425,6 +513,7 @@ function transformResponseHandler(data, header) {
 	  this.isSortDown = function (fieldName) {
 		  return this.sortField === fieldName && this.reverse;
 	  };
+	  
     
   }]); //app.controller 'sourceController'
 ]]></CSP>

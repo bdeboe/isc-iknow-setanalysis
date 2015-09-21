@@ -184,16 +184,15 @@ Attempts to create a web application forwarding to Demo.SetAnalysis.RestHandler<
 <Implementation><![CDATA[
 	set tSC = $$$OK, tCreated=0, tCurrentNS = $$$LOWER($namespace)
 	try {
-		set:pWebAppName="" pWebAppName = tCurrentNS_"SetAnalysisDemo"
-		set tWebAppName = "/csp/"_pWebAppName
+		set:pWebAppName="" pWebAppName = "/csp/"_tCurrentNS_"/saREST/"
 		set tProperties("NameSpace") = tCurrentNS
 		set tProperties("DispatchClass") = "Demo.SetAnalysis.RestHandler"
 		set tProperties("AutheEnabled") = $$$AutheUnauthenticated
 		//set tProperties("iKnowEnabled") = 1
 		
 		zn "%SYS"
-		if '##class(Security.Applications).Exists(tWebAppName) {
-			set tSC = ##class(Security.Applications).Create(tWebAppName, .tProperties)
+		if '##class(Security.Applications).Exists(pWebAppName) {
+			set tSC = ##class(Security.Applications).Create(pWebAppName, .tProperties)
 			quit:$$$ISERR(tSC)
 			set tCreated=1
 		}
@@ -206,9 +205,9 @@ Attempts to create a web application forwarding to Demo.SetAnalysis.RestHandler<
 	if $$$ISERR(tSC) {
 		write !,"WARNING: unable to create web application due to the following error:",!
 		do $system.OBJ.DisplayError(tSC)
-		write !,"You'll still have to create a web application '",tWebAppName,"' referring to Demo.SetAnalysis.RestHandler",!
+		write !,"You'll still have to create a web application '",pWebAppName,"' referring to Demo.SetAnalysis.RestHandler",!
 	} elseif (tCreated) {
-		write !,"Web Application created successfully",!
+		write !,"Web Application '"_pWebAppName_"' created successfully",!
 	}
 	
 	quit $$$OK

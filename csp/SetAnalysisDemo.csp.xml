@@ -8,7 +8,15 @@
     <link rel="stylesheet" type="text/css" href="nglib/bootstrap/css/bootstrap.min.css" />
     <style type="text/css">
     .negation {
-	    color: red;
+	    text-decoration-color: red;
+	    -moz-text-decoration-color: red;
+    }
+    
+    .sent-pos {
+	    color: green;
+    }
+    .sent-neg {
+	    color: brown;
     }
     
     .entity {
@@ -24,22 +32,27 @@
 	    font-weight: bold;
 	    color: Navy;
     }
+    
+    .panel-body-table {
+	    padding: 0px;
+    }
    </style>
  </head>
  <body style="padding: 15px">
-  <div class="container" ng-controller="DomainController">
-  
+  <div class="container" ng-controller="DomainController as dc">
      <ul class="nav nav-tabs" id="myTabs">
        <li class="active"><a href="SetAnalysisDemo.csp#table" data-toggle="tab" aria-expanded="true">Table</a></li>
        <li class=""><a href="SetAnalysisDemo.csp#concepts" data-toggle="tab" aria-expanded="false">Concepts</a></li>
        <li class=""><a href="SetAnalysisDemo.csp#sets" data-toggle="tab" aria-expanded="false">Sets</a></li>
+       <li class="" ng-show="Features.HasSentiment"><a href="SetAnalysisDemo.csp#sentiment" data-toggle="tab" aria-expanded="false">Sentiment</a></li>
      </ul>
 
-     <div id="myTabContent" class="tab-content" ng-controller="ConceptsController">
+     <div id="myTabContent" class="tab-content" ng-controller="ConceptsController as cc">
        
-	   <div class="tab-pane fade  active in" id="table" ng-controller="SourceController as sc">
+	   <div class="tab-pane fade  active in" id="table" ng-controller="SourceController as sc" style="padding-top:10px;">
 	    <div >
 	      <div class="well">
+
 	        <label>
 	          <input type="text" ng-model="criteria"></input>&nbsp;<span class="glyphicon glyphicon-search"></span>
 	        </label>
@@ -65,7 +78,7 @@
 		 </div>
 	   </div> <!--tabpane sources-->
 	   
-       <div class="tab-pane fade" id="concepts">
+       <div class="tab-pane fade" id="concepts" style="padding-top:10px;">
         <br>
           <div class="row">
 		   <div class="col-md-4">     
@@ -87,7 +100,7 @@
 		   <div class="col-md-4">
 	         <div class="panel panel-primary">
 	           <div class="panel-heading">Concepts</div>
-	           <div class="panel-body" style="max-height: 600px;overflow-y: scroll;">
+	           <div class="panel-body panel-body-table" style="max-height: 600px;overflow-y: scroll;">
                  <table class="table table-hover">
                     <tr ng-repeat="concept in concepts">  
 	                  <td ng-click="selectConcept(concept)">{{concept.EntityValue}}</td>
@@ -102,7 +115,7 @@
 		       <div class="col-md-12">
 	             <div class="panel panel-primary">
 	               <div class="panel-heading">Similar</div>
-	               <div class="panel-body" style="max-height: 600px;overflow-y: scroll;">
+	               <div class="panel-body panel-body-table" style="max-height: 600px;overflow-y: scroll;">
                      <table class="table table-hover">
                        <tr ng-repeat="similarConcept in similar" ng-class="{'success': isSelected($index)}">  
 	                     <td ng-click="selectSimilar(similarConcept, $index)">{{similarConcept.EntityValue}}</td>
@@ -122,12 +135,12 @@
           </div> 
           <div class="col-md-4">
 	         <div class="panel panel-primary">
-	           <div class="panel-heading">Source</div>
-	           <div class="panel-body" style="max-height: 600px;overflow-y: scroll;">
+	           <div class="panel-heading">Sentences</div>
+	           <div class="panel-body panel-body-table" style="max-height: 600px;overflow-y: scroll;">
                  <table class="table table-hover">
-                    <tr ng-repeat="source in sources">  
+                    <tr ng-repeat="s in sentences">  
 	                  <td>
-	                    <div ng-bind-html="source.FullText"></div>
+	                    <div ng-bind-html="s.Text"></div>
 	                  </td>
 	                </tr>
 	             </table>
@@ -138,13 +151,12 @@
          </div>
        </div>
 
-	   <div class="tab-pane fade" id="sets">
-        <div class="row">&nbsp;</div>
+	   <div class="tab-pane fade" id="sets" style="padding-top:10px;">
 	   	   <div class="row">
 		     <div class="col-md-5">
 	             <div class="panel panel-primary">
 	               <div class="panel-heading">Sets</div>
-	               <div class="panel-body" style="max-height: 470px;overflow-y: scroll;">
+	               <div class="panel-body panel-body-table" style="max-height: 470px;overflow-y: scroll;">
                      <table class="table table-hover">
 			           <thead>
 			             <th>Set</th>
@@ -169,7 +181,7 @@
 	             </div>
 	             <div class="panel panel-primary">
 	               <div class="panel-heading">Sources</div>
-	               <div class="panel-body" style="max-height: 470px;overflow-y: scroll;">
+	               <div class="panel-body panel-body-table" style="max-height: 470px;overflow-y: scroll;">
 	                   <table class="table">
 	                   <tr>
 	                     <td>Total Sources</td>
@@ -190,7 +202,7 @@
 		     <div class="col-md-7">
 	             <div class="panel panel-primary">
 	               <div class="panel-heading">{{overlapSourcesRole}}</div>
-	               <div class="panel-body" style="max-height: 470px;overflow-y: scroll;">
+	               <div class="panel-body panel-body-table" style="max-height: 470px;overflow-y: scroll;">
                      <table class="table table-hover">
 	                    <tr ng-repeat="source in overlapSources">  
 		                  <td>
@@ -206,6 +218,60 @@
 	   </div>
 
 
+
+	   <div class="tab-pane fade" id="sentiment" style="padding-top:10px;">
+	    <div class="col-md-5">
+	     <div class="row">
+	      <div class="well">
+	       <input type="text" ng-model="sentimentCriteria"></input>&nbsp;<span class="glyphicon glyphicon-search"></span>
+	      </div>
+	     </div>
+	     <div class="row" style="max-height: 450px; overflow-y: scroll;">
+	      <table class="table table-hover">
+	       <thead>
+	       	<th ng-click="cc.sort('EntityValue');" style="cursor: pointer;">Entity<i ng-class="{'glyphicon glyphicon-chevron-up': cc.isSortUp('EntityValue'), 'glyphicon glyphicon-chevron-down': cc.isSortDown('EntityValue')}"></i></th>
+	       	<th ng-click="cc.sort('TotalFrequency');" style="cursor: pointer;">Mentions<i ng-class="{'glyphicon glyphicon-chevron-up': cc.isSortUp('TotalFrequency'), 'glyphicon glyphicon-chevron-down': cc.isSortDown('TotalFrequency')}"></i></th>
+	       	<th ng-click="cc.sort('TotalPositive');" style="cursor: pointer;">Positive<i ng-class="{'glyphicon glyphicon-chevron-up': cc.isSortUp('TotalPositive'), 'glyphicon glyphicon-chevron-down': cc.isSortDown('TotalPositive')}"></i></th>
+	       	<th ng-click="cc.sort('TotalNegative');" style="cursor: pointer;">Negative<i ng-class="{'glyphicon glyphicon-chevron-up': cc.isSortUp('TotalNegative'), 'glyphicon glyphicon-chevron-down': cc.isSortDown('TotalNegative')}"></i></th>
+	       </thead>
+	       <tbody>
+	        <tr ng-repeat="ent in sentimentData | filter:sentimentCriteria | orderBy:cc.sortField:cc.reverse | limitTo:100"
+	        	ng-click="selectConcept(ent);" style="cursor: pointer;" >
+	         <td ng-class="cc.sentimentClass(ent);">{{ent.EntityValue}}</td>
+	         <td>{{ent.TotalFrequency}}</td>
+	         <td class="success">{{ent.TotalPositive}}</td>
+	         <td class="danger">{{ent.TotalNegative}}</td>
+	        </tr>
+	       </tbody>
+	      </table>
+	     </div>
+	    </div>
+	   
+	    <div class="col-md-6 col-md-offset-1">
+	     <div class="row">
+	      <div class="well">
+	       <input type="text" ng-model="sentenceCriteriaStr"></input>&nbsp;<span class="glyphicon glyphicon-search"></span>
+	       <div class="pull-right">
+	        <a class="btn btn-default" ng-class="{ 'btn-primary': (sentFilterAtt=='')||(sentFilterAtt==undefined) }" ng-click="selectSentimentFilter('');" >all</a>
+	        <a class="btn btn-default text-success" ng-class="{ 'btn-success': sentFilterAtt=='pos' }" ng-click="selectSentimentFilter('pos');" >positive</a>
+	        <a class="btn btn-default text-danger" ng-class="{ 'btn-danger': sentFilterAtt=='neg' }" ng-click="selectSentimentFilter('neg');" >negative</a>
+	       </div>
+	      </div>
+	     </div>
+	         <div class="panel" ng-class="{ 'panel-default': (sentFilterAtt=='')||(sentFilterAtt==undefined), 'panel-success': (sentFilterAtt=='pos'), 'panel-danger': (sentFilterAtt=='neg') }">
+	           <div class="panel-heading">Sentences</div>
+	           <div class="panel-body panel-body-table" style="max-height: 450px; overflow-y: scroll;">
+                 <table class="table table-hover">
+                    <tr ng-repeat="s in sentences | filter:sentenceCriteriaStr | filter:sentenceCriteria">  
+	                  <td>
+	                    <div ng-bind-html="s.Text"></div>
+	                  </td>
+	                </tr>
+	             </table>
+ 		       </div>
+	 		 </div>
+	    </div>
+	   </div>
 
 
       </div> <!--myTabContent-->
