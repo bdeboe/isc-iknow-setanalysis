@@ -20,6 +20,19 @@ This class represents sets saved from the SetAnalysis demo application.</Descrip
 <Parameter name="MAXLEN"/>
 </Property>
 
+<Property name="Logic">
+<Type>%String</Type>
+<Parameter name="MAXLEN" value="2000"/>
+</Property>
+
+<Property name="Type">
+<Type>%String</Type>
+<Calculated>1</Calculated>
+<SqlComputeCode> set {*} = $s({Logic}'="":"composite", 1:"entities")</SqlComputeCode>
+<SqlComputed>1</SqlComputed>
+<ReadOnly>1</ReadOnly>
+</Property>
+
 <Index name="NameIdx">
 <Properties>DomainId,Name</Properties>
 <Unique>1</Unique>
@@ -36,12 +49,157 @@ Retrieves a <class>%iKnow.Filters.Filter</class> instance representing all the s
 in this set.]]></Description>
 <ReturnType>%iKnow.Filters.Filter</ReturnType>
 <Implementation><![CDATA[
-	set tEntities = ""
-	for i = 1:1:..Entities.Count() {
-		set tEntities = tEntities _ $lb(..Entities.GetAt(i))
+	if (..Logic="") {
+		set tEntities = ""
+		for i = 1:1:..Entities.Count() {
+			set tEntities = tEntities _ $lb(..Entities.GetAt(i))
+		}
+		quit:'$d(tEntities) ##class(%iKnow.Filters.SourceIdFilter).%New(..DomainId, 0)
+		quit ##class(%iKnow.Filters.ContainsEntityFilter).%New(..DomainId, .tEntities)
+	} else {
+		set tSC = ..ParseLogic(..DomainId, ..Logic, .tTree)
+		if $$$ISERR(tSC) { $$$ThrowStatus(tSC) }
+		for tNode = tTree:-1:0 {
+			set tOperator = $g(tTree(tNode,"operator"),"AND")
+			set tNegated = $g(tTree(tNode,"negated"), 0)
+			set tFilters(tNode) = ##class(%iKnow.Filters.GroupFilter).%New(..DomainId, tOperator, tNegated)
+			set tChild = ""
+			for {
+				set tChild = $o(tTree(tNode,"children",tChild))
+				quit:tChild=""
+				do tFilters(tNode).AddSubFilter(tFilters(tChild))
+			}
+			for tLeaf = 1:1:$g(tTree(tNode,"leaf")) {
+				if $d(tTree(tNode,"leaf",tLeaf,"negated")) {
+					set tLeafFilter = ##class(%iKnow.Filters.GroupFilter).%New(..DomainId, "AND", 1)
+					do tLeafFilter.AddSubFilter(..NameIdxOpen(..DomainId, tTree(tNode,"leaf",tLeaf)).GetFilter())
+				} else {
+					set tLeafFilter = ..NameIdxOpen(..DomainId, tTree(tNode,"leaf",tLeaf)).GetFilter()
+				}
+				do tFilters(tNode).AddSubFilter(tLeafFilter)
+			}
+		}
+		quit tFilters(0)
 	}
-	quit:'$d(tEntities) ##class(%iKnow.Filters.SourceIdFilter).%New(..DomainId, 0)
-	quit ##class(%iKnow.Filters.ContainsEntityFilter).%New(..DomainId, .tEntities)
+]]></Implementation>
+</Method>
+
+<Method name="NameIsValid">
+<ClassMethod>1</ClassMethod>
+<FormalSpec>pName:%String</FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	quit:$zstrip(pName,"<>W")'=pName $$$ERROR($$$GeneralError,"Set name cannot have leading or trailing whitespace")
+	quit:$f(pName,"(")+$f(pName,")") $$$ERROR($$$GeneralError,"Set name cannot have parentheses")
+	quit:$zstrip(pName,"*C")'=pName $$$ERROR($$$GeneralError,"Set name cannot contain control characters")
+	quit:$find(" "_$$$UPPER(pName)_" "," AND ") $$$ERROR($$$GeneralError,"Set name cannot contain reserved word AND")
+	quit:$find(" "_$$$UPPER(pName)_" "," OR ") $$$ERROR($$$GeneralError,"Set name cannot contain reserved word OR")
+	quit:$find(" "_$$$UPPER(pName)_" "," NOT ") $$$ERROR($$$GeneralError,"Set name cannot contain reserved word NOT")
+	quit $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="%OnValidateObject">
+<Private>1</Private>
+<ReturnType>%Status</ReturnType>
+<ServerOnly>1</ServerOnly>
+<Implementation><![CDATA[
+	quit:(..Logic'="")&&..Entities.Count() $$$ERROR($$$GeneralError,"A set cannot be both based on entities and other sets")
+	quit ..ParseLogic(..DomainId, ..Logic)
+]]></Implementation>
+</Method>
+
+<Method name="ParseLogic">
+<ClassMethod>1</ClassMethod>
+<FormalSpec>pDomainId:%Integer,pLogic:%String,*pTree</FormalSpec>
+<Private>1</Private>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	kill pTree
+	set tSC = $$$OK, pTree=0
+	try {
+		set pLogic = $replace($replace(pLogic,")"," ) "),"("," ( ")
+		set pLogic = $zstrip($zstrip(pLogic,"=W"),"*C")
+		set tAnnotated = $translate($$$UPPER(pLogic),"()",$c(0,1))
+		set tAnnotated = $replace(tAnnotated," AND "," "_$c(2,2,2)_" ")
+		set tAnnotated = $replace(tAnnotated," OR "," "_$c(3,3)_" ")
+		set tAnnotated = $replace(tAnnotated," NOT "," "_$c(4,4,4)_" ")
+		
+		set tPos=0, tEndPos = $l(pLogic), tCurrent="", tNode=0, tNegateNext=0
+		while $i(tPos)<=tEndPos {
+			set tChar = $e(tAnnotated,tPos), tCharCode=$a(tChar)
+			
+			// opening parentheses: start new node
+			if (tCharCode=0) {
+				do AddLeaf
+				set pTree($i(pTree),"parent")=tNode
+				set pTree(tNode,"children",pTree)=""
+				set tNode = pTree
+				set:tNegateNext pTree(tNode,"negated")=1, tNegateNext=0
+				continue
+			}
+			
+			// close parentheses: end current node and go back up
+			elseif (tCharCode=1) {
+				do AddLeaf
+				set:'$d(pTree(tNode,"operator")) pTree(tNode,"operator") = "AND"
+				set tNode = $g(pTree(tNode,"parent"),-1)
+				if (tNode<0) {
+					set tSC = $$$ERROR($$$GeneralError, "Illegal combination of sets, check parentheses") 
+					quit
+				}
+				continue
+			}
+			
+			// operator: AND
+			elseif (tCharCode=2) {
+				do AddLeaf
+				if $d(pTree(tNode,"operator"),tPrevOperator) && (tPrevOperator'="AND") {
+					set tSC = $$$ERROR($$$GeneralError, "Cannot mix operators")
+					quit
+				}
+				set pTree(tNode,"operator") = "AND"
+				set tPos=tPos+3
+			}
+			
+			// operator: OR
+			elseif (tCharCode=3) {
+				do AddLeaf
+				if $d(pTree(tNode,"operator"),tPrevOperator) && (tPrevOperator'="OR") {
+					set tSC = $$$ERROR($$$GeneralError, "Cannot mix operators")
+					quit
+				}
+				set pTree(tNode,"operator") = "OR"
+				set tPos=tPos+2
+			}
+			
+			elseif (tCharCode=4) {
+				do AddLeaf
+				set tNegateNext = 1
+			}
+			
+			// skip if uninteresting
+			else { set tCurrent=tCurrent_$e(pLogic,tPos) continue }
+		}
+		quit:$$$ISERR(tSC)
+		do AddLeaf
+		
+	} catch (ex) {
+		set tSC = ex.AsStatus()
+	}
+	quit tSC
+	
+AddLeaf
+	set tCurrent = $zstrip(tCurrent,"<>W")
+	if tCurrent'="" {
+		if '..NameIdxExists(pDomainId, tCurrent) {
+			set tSC = $$$ERROR($$$GeneralError, "Unknown set referenced in logic: '"_tCurrent_"'")
+			quit
+		}
+		set pTree(tNode,"leaf",$i(pTree(tNode,"leaf"))) = tCurrent
+		set:tNegateNext pTree(tNode,"leaf",pTree(tNode,"leaf"),"negated") = 1
+		set tCurrent = ""
+	}
 ]]></Implementation>
 </Method>
 
@@ -65,6 +223,9 @@ in this set.]]></Description>
 </Value>
 <Value name="4">
 <Value>Entities</Value>
+</Value>
+<Value name="5">
+<Value>Logic</Value>
 </Value>
 </Data>
 </Storage>

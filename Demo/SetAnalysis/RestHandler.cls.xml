@@ -70,6 +70,20 @@ Retrieves all sources (including full text and metadata) in the domain and print
 ]]></Implementation>
 </Method>
 
+<Method name="GetFilterForRequestSet">
+<ClassMethod>1</ClassMethod>
+<FormalSpec>pDomainId</FormalSpec>
+<Private>1</Private>
+<ReturnType>%iKnow.Filters.Filter</ReturnType>
+<Implementation><![CDATA[
+	quit:'$d(%request.Data("SourceFilter",1),tFilterSet) ""
+	quit:(tFilterSet="") ""
+	set tSetDef = ##class(Demo.SetAnalysis.SetDefinition).NameIdxOpen(pDomainId, tFilterSet)
+	quit:'$isobject(tSetDef) ""
+	quit tSetDef.GetFilter()
+]]></Implementation>
+</Method>
+
 <Method name="GetSentencesByEntity">
 <Description><![CDATA[
 Retrieves all sentences (including full text) in the domain containing <var>pEntity</var> and prints them as JSON]]></Description>
@@ -81,16 +95,10 @@ Retrieves all sentences (including full text) in the domain containing <var>pEnt
 	try {
 		set:$data(%response) %response.ContentType="application/json"
 		
-		set tFilter = ""
-		if $g(%request.Data("SourceFilter",1)) {
-			set tFilter = ..GetNotInSetFilter(pDomainId, .tSC)
-			quit:$$$ISERR(tSC)
-		}
-		
 		set tEntityId = ##class(%iKnow.Queries.EntityAPI).GetId(pDomainId, pEntity)
 		set tHighlight("ENTITY", tEntityId) = "<b class=""entity"" title=""entity '"_$zcvt(pEntity,"O","HTML")_"'"">"
 		
-		set tSC = ##class(%iKnow.Queries.SentenceAPI).GetByEntities(.tSentences, pDomainId, pEntity, tFilter, 1, ..#IKPAGESIZE)
+		set tSC = ##class(%iKnow.Queries.SentenceAPI).GetByEntities(.tSentences, pDomainId, pEntity, ..GetFilterForRequestSet(pDomainId), 1, ..#IKPAGESIZE)
 		quit:$$$ISERR(tSC)
 		
 		set tJSON = ##class(%ZEN.proxyObject).%New()
@@ -373,14 +381,8 @@ Retrieves the top entities in the domain and prints them to JSON</Description>
 <Implementation><![CDATA[
 	set tSC = $$$OK
 	try {
-		if $g(%request.Data("SourceFilter",1)) {
-			set tFilter = ..GetNotInSetFilter(pDomainId, .tSC)
-			quit:$$$ISERR(tSC)
-		} else {
-			set tFilter = ""
-		}
 		
-		set tSC = ##class(%iKnow.Queries.EntityAPI).GetTop(.tResult, pDomainId, 1, ..#IKPAGESIZE, tFilter, ..#IKPFILTERMODE)
+		set tSC = ##class(%iKnow.Queries.EntityAPI).GetTop(.tResult, pDomainId, 1, ..#IKPAGESIZE, ..GetFilterForRequestSet(pDomainId), ..#IKPFILTERMODE)
 		quit:$$$ISERR(tSC)
 		
 		set:$data(%response) %response.ContentType="application/json"
@@ -408,14 +410,7 @@ Retrieves the top entities similar to <var>pString</var> and prints them to JSON
 <Implementation><![CDATA[
 	set tSC = $$$OK
 	try {
-		if $g(%request.Data("SourceFilter",1)) {
-			set tFilter = ..GetNotInSetFilter(pDomainId, .tSC)
-			quit:$$$ISERR(tSC)
-		} else {
-			set tFilter = ""
-		}
-		
-		set tSC = ##class(%iKnow.Queries.EntityAPI).GetSimilar(.tResult, pDomainId, pString, 1, ..#IKPAGESIZE, tFilter, ..#IKPFILTERMODE)
+		set tSC = ##class(%iKnow.Queries.EntityAPI).GetSimilar(.tResult, pDomainId, pString, 1, ..#IKPAGESIZE, ..GetFilterForRequestSet(pDomainId), ..#IKPFILTERMODE)
 		quit:$$$ISERR(tSC)
 		
 		set:$data(%response) %response.ContentType="application/json"
@@ -496,6 +491,7 @@ Writes the following JSON output:
 			set tProxy.SetId = tResult.%Get("ID")
 			set tProxy.Name = tSetDef.Name
 			set tProxy.Entities = tSetDef.Entities
+			set tProxy.Logic = tSetDef.Logic
 			set tProxy.Sources = tSetDef.GetFilter().FilteredSourceCount
 			do tJSON.Sets.Insert(tProxy)
 		}
@@ -511,7 +507,6 @@ Writes the following JSON output:
 	} catch (ex) {
 		set tSC = ex.AsStatus()
 	}
-	s ^bdb($i(^bdb)) = tSC
 	quit ..ErrorHandler(tSC)
 ]]></Implementation>
 </Method>
@@ -524,7 +519,8 @@ Accepts the following JSON (as HTTP POST content):
 <blockquote><pre>{
 		SetId: 123,
 		Name: 'name',
-		Entities: [ 'ent1', 'ent2' ]
+		Entities: [ 'ent1', 'ent2' ],
+			Logic: 'abc AND def'
 }</pre></blockquote>]]></Description>
 <ClassMethod>1</ClassMethod>
 <FormalSpec>pDomainId:%Integer</FormalSpec>
@@ -555,10 +551,15 @@ Accepts the following JSON (as HTTP POST content):
 		}
 		
 		// append entities
-		for i = 1:1:tJSON.Entities.Count() {
-			set tEntity = tJSON.Entities.GetAt(i)
-			do:'$d(tCurrentEntities(tEntity)) tSetDef.Entities.Insert(tEntity)
+		if $isobject(tJSON.Entities) {
+			for i = 1:1:tJSON.Entities.Count() {
+				set tEntity = tJSON.Entities.GetAt(i)
+				do:'$d(tCurrentEntities(tEntity)) tSetDef.Entities.Insert(tEntity)
+			}
 		}
+		
+		// update logic
+		set tSetDef.Logic = tJSON.Logic
 		
 		set tSC = tSetDef.%Save()
 		quit:$$$ISERR(tSC)
@@ -566,6 +567,7 @@ Accepts the following JSON (as HTTP POST content):
 	} catch (ex) {
 		set tSC = ex.AsStatus()
 	}
+	s ^bdb($i(^bdb)) = tSC
 	quit ..ErrorHandler(tSC)
 ]]></Implementation>
 </Method>
@@ -795,6 +797,7 @@ Simple error handler, converting a <class>%Status</class> object to a JSON repre
 	} catch (ex) {
 		set tSC = ex.AsStatus()
 	}
+	s ^bdb($i(^bdb)) = tSC
 	quit ..ErrorHandler(tSC)
 ]]></Implementation>
 </Method>
@@ -816,12 +819,14 @@ Simple error handler, converting a <class>%Status</class> object to a JSON repre
 		set tJSON.HasTables = (tPackageName'="")
 		
 		if tJSON.HasTables {
-			set tSQL = "SELECT TOP 1 %ID FROM "_$tr(tPackageName,".","_")_".PathAttribute UNION SELECT TOP 1 %ID FROM "_$tr(tPackageName,".","_")_".SentenceAttribute"
+			set tSQL = "SELECT TOP 1 %ID FROM "_$tr(tPackageName,".","_")_".PathAttribute WHERE AttributeTypeId IN (5,6) UNION SELECT TOP 1 %ID FROM "_$tr(tPackageName,".","_")_".SentenceAttribute WHERE AttributeTypeId IN (5,6)"
 			set tResult = ##class(%SQL.Statement).%ExecDirect(,tSQL)
 			set tJSON.HasSentiment = (tResult.%Next() && tResult.%GetData(1))
 		} else {
 			set tJSON.HasSentiment = 0
 		}
+		
+		set tJSON.MinSearchLength = tDomain.GetParameter($$$IKPMINTOPCONCEPTLENGTH)
 		
 		// write JSON
 		do tJSON.%ToJSON(, ..#JSONFORMATPARAMS)

@@ -5,7 +5,7 @@
 
 <Method name="LoadFromJSON">
 <ClassMethod>1</ClassMethod>
-<FormalSpec>pJSON:%Stream.Object,pClassName:%String</FormalSpec>
+<FormalSpec>pJSON:%Stream.Object,pClassName:%String,pUTF8:%Boolean=0</FormalSpec>
 <ReturnType>%Status</ReturnType>
 <Implementation><![CDATA[
 	set tSC = $$$OK
@@ -13,7 +13,9 @@
 		set tString=""
 		do pJSON.Rewind()
 		while 'pJSON.AtEnd {
-			set tString = tString_pJSON.ReadLine()
+			set tLine = pJSON.ReadLine()
+			set:pUTF8 tLine = $zconvert(tLine,"I","UTF8")
+			set tString = tString_tLine
 		}
 		
 		set tSC = ##class(%ZEN.Auxiliary.jsonProvider).%ConvertJSONToObject(tString,, .tObject)

@@ -67,7 +67,7 @@
 	            <i ng-class="{'glyphicon glyphicon-chevron-up': isSortUp(md), 'glyphicon glyphicon-chevron-down': isSortDown(md)}"></i>
 	          </th>
 	          <th>FullText</th>
-	          <th>Sets</th>
+	          <th>Sets <i ng-class="{'glyphicon glyphicon-chevron-up': isSortUp('Sets'), 'glyphicon glyphicon-chevron-down': isSortDown('Sets')}"></i></th>
 	        </thead>
 	        <tr ng-repeat="src in srcData | filter:criteria | orderBy:sortField:reverse | limitTo:100">  
 	          <td ng-repeat="md in mdData">{{src[md]}}</td>
@@ -81,8 +81,11 @@
        <div class="tab-pane fade" id="concepts" style="padding-top:10px;">
         <br>
           <div class="row">
-		   <div class="col-md-4">     
-		     <input type="checkbox" ng-model="onlyUnknown" ng-change="refreshConcepts()"> Filter to records not yet included in a set
+		   <div class="col-md-4">    
+		     Filter entities &nbsp;<select ng-model="filterSet" ng-change="refreshConcepts()">
+		      <option value="">show all</option>
+		      <option ng-repeat="set in sets" ng-value="set.Name">for set '{{set.Name}}'</option>
+		     </select>
            </div>
            <div class="col-md-4">
               Similar of &nbsp;<input type="text" id="inputConcept" placeholder="Concept fragment" ng-model="autocomplete" ng-change="getAutocomplete()">
@@ -154,6 +157,7 @@
 	   <div class="tab-pane fade" id="sets" style="padding-top:10px;">
 	   	   <div class="row">
 		     <div class="col-md-5">
+		     
 	             <div class="panel panel-primary">
 	               <div class="panel-heading">Sets</div>
 	               <div class="panel-body panel-body-table" style="max-height: 470px;overflow-y: scroll;">
@@ -179,7 +183,38 @@
 	                 </table>
 	               </div>
 	             </div>
-	             <div class="panel panel-primary">
+	             
+	             
+	             <div style="margin-bottom: 20px;">
+ 	              <button type="button" class="btn btn-primary pull-right" ng-click="newCompositeSet()" >New composite set</button>
+ 	             </div>
+ 	             
+ 	             <div id="newSetModal" class="modal fade" role="dialog">
+				   <div class="modal-dialog">
+				    <div class="modal-content">
+				      <div class="modal-header">
+				        <button type="button" class="close" data-dismiss="modal">&times;</button>
+				        <h4 class="modal-title">New composite set</h4>
+				      </div>
+				      <div class="modal-body">
+				       <form>
+				        <div class="form-group">
+				         <label for="txtNewSetName">Set name</label>
+				         <input type="text" class="form-control" id="txtNewSetName" ng-model="SetName" placeholder="My set" />
+				        </div>
+				        <div class="form-group">
+				         <label for="txtNewSetLogic">Set logic</label>
+				         <input type="text" class="form-control" id="txtNewSetLogic" ng-model="SetLogic" placeholder="setA AND (setB OR setC)" />
+				        </div>
+				        <button type="button" class="btn btn-primary" ng-click="saveCompositeSet()">Save</button>
+				       </form>
+				      </div>
+				    </div>
+				  </div>
+				</div>
+	             
+	             <!--
+	              <div class="panel panel-primary">
 	               <div class="panel-heading">Sources</div>
 	               <div class="panel-body panel-body-table" style="max-height: 470px;overflow-y: scroll;">
 	                   <table class="table">
@@ -197,7 +232,9 @@
 	                   </tr>
 	                 </table>
  		           </div>
-	 		     </div>
+	 		      </div>
+	 		      -->
+	 		      
 		     </div>
 		     <div class="col-md-7">
 	             <div class="panel panel-primary">
@@ -276,6 +313,24 @@
 
       </div> <!--myTabContent-->
 
+<div class="modal fade" id="errorModal" tabindex="-1" role="dialog" aria-labelledby="basicModal" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-danger">
+        <div class="modal-content">
+            <div class="modal-header">
+            <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+            <h4 class="modal-title" id="myModalLabel">(title)</h4>
+            </div>
+            <div class="modal-body">
+                <span class="modal-body-part1">(body)</span><br><br>
+                <span class="modal-body-part2">(body)</span><br><br>
+                <span class="modal-body-part3">(body)</span>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+        </div>
+    </div>
+  </div>
+</div>
 
     <script type="text/javascript" src="nglib/jquery-1.9.0.min.js"></script>
     <script type="text/javascript" src="nglib/angular.min.js"></script>  <!--general angular framework-->

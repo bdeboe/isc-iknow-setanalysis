@@ -40,12 +40,11 @@ var conceptsApp = angular.module('conceptsApp', ['ngResource', 'ngSanitize']);
   })
    
  function showModalError(title, part1, part2, part3) {
-	 console.log(title + ' - ' + part1);
- 	$('#basicModal').find('.modal-title').text(title);
- 	$('#basicModal').find('.modal-body-part1').text(part1);
-   	$('#basicModal').find('.modal-body-part2').text(part2);
- 	$('#basicModal').find('.modal-body-part3').text(part3);
-  	$('#basicModal').modal({"backdrop":"static"});
+ 	$('#errorModal').find('.modal-title').text(title);
+ 	$('#errorModal').find('.modal-body-part1').text(part1);
+   	$('#errorModal').find('.modal-body-part2').text(part2);
+ 	$('#errorModal').find('.modal-body-part3').text(part3);
+  	$('#errorModal').modal({"backdrop":"static"});
  };
  
  function resourceErrorHandler(response) {
@@ -253,15 +252,20 @@ function transformResponseHandler(data, header) {
    }
 
    $scope.editSet= function(set, index) {
-	 $scope.SetName = set.Name;
-	 $scope.SetId = set.SetId;
-	 
-	 // move all Entities into the Similar table
-	 $scope.similar = new Array();
-	 for (i in set.Entities) {
-		$scope.similar[$scope.similar.length] = { EntityValue: set.Entities[i], selected: 1, canRemove: true }; 
-	 }
-	$('#myTabs li:eq(1) a').tab('show');   
+	   $scope.SetId = set.SetId;
+	   $scope.SetName = set.Name;
+	   $scope.SetLogic = set.Logic
+	   
+	   if ((set.Logic != '') && (set.Logic != null)) {
+		 $('#newSetModal').modal();
+	   } else {
+		 // move all Entities into the Similar table
+		 $scope.similar = new Array();
+		 for (i in set.Entities) {
+			$scope.similar[$scope.similar.length] = { EntityValue: set.Entities[i], selected: 1, canRemove: true }; 
+		 }
+		$('#myTabs li:eq(1) a').tab('show');
+	  }
   }
   
   $scope.removeEntityFromSet = function(entity) {
@@ -338,7 +342,7 @@ function transformResponseHandler(data, header) {
    $scope.clearForm();
    
    $scope.refreshConcepts = function() {
-	  temp = restTop.query({domain:$scope.ikDomain, sourceFilter:$scope.onlyUnknown?1:0},function(data) {
+	  temp = restTop.query({domain:$scope.ikDomain, sourceFilter:$scope.filterSet},function(data) {
       	$scope.concepts = temp.Entities;
 	  	delete temp;
       });
@@ -346,14 +350,14 @@ function transformResponseHandler(data, header) {
          
    $scope.getSimilar = function (conceptValue) {
      //todo: when using encodeURIComponent, also need to decode in handler
-     var temp = restSimilar.query({domain:$scope.ikDomain, entity:conceptValue, sourceFilter:$scope.onlyUnknown?1:0},function(data) {
+     var temp = restSimilar.query({domain:$scope.ikDomain, entity:conceptValue, sourceFilter:$scope.filterSet},function(data) {
      	$scope.similar = temp.Entities;
      	delete temp;
      });
    };
    
    $scope.getSentences = function (conceptValue) {
-     tempSentences = restSentencesByEntity.query({domain:$scope.ikDomain, entity:conceptValue},function(data) {
+     tempSentences = restSentencesByEntity.query({domain:$scope.ikDomain, entity:conceptValue, sourceFilter:$scope.filterSet},function(data) {
 	     $scope.sentences = tempSentences.Sentences;
 	     delete tempSentences;
      });
@@ -386,7 +390,7 @@ function transformResponseHandler(data, header) {
     
   
   $scope.getAutocomplete = function(ikDomain) {
-    if (($scope.autocomplete != '') && ($scope.autocomplete.length > 2)) {
+    if (($scope.autocomplete != '') && ($scope.autocomplete.length >= $scope.Features.MinSearchLength)) {
 	    $scope.getSimilar($scope.autocomplete);
     }
   };
@@ -459,6 +463,21 @@ function transformResponseHandler(data, header) {
 			  case 'neg': $scope.sentenceCriteria = { HasNegative: 1 }; break;
 		  }
 	  }
+	  
+	  $scope.newCompositeSet = function() {
+		  $scope.SetId = 0;
+		  $scope.SetName = '';
+		  $scope.SetLogic = '';
+		  $('#newSetModal').modal();
+	  }
+	  
+	  $scope.saveCompositeSet = function() {
+		console.log($scope.SetLogic);
+		restSaveSet.update({domain:$scope.ikDomain}, { 'SetId':$scope.SetId, 'Name':$scope.SetName, 'Logic':$scope.SetLogic}, function(data) {
+			$('#newSetModal').modal('hide');
+			$scope.getSets();   
+		});
+	  };
  }]);
 
  conceptsApp.factory('restSources', function ($resource) {
