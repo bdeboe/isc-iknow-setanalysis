@@ -31,10 +31,9 @@ Expects any predefined dimension members to supplied with <var>pMemmbers</var> u
 		set tStatement = ##class(%SQL.Statement).%New()
 		set tSC = tStatement.%Prepare(tSQL)
 		quit:$$$ISERR(tSC)
-		
 		set tResult = tStatement.%Execute(..%ikDomainId)
 		while tResult.%Next() {
-			set pMembers($i(pMembers)) = $lb(tResult.%Get("ID"), tResult.%Get("Name"), tResult.%Get("ID"))
+			set pMembers($i(pMembers)) = $lb(tResult.%Get("Name"), tResult.%Get("Name"), tResult.%Get("Name"))
 		}
 		
 	} catch (ex) {
@@ -48,9 +47,8 @@ Expects any predefined dimension members to supplied with <var>pMemmbers</var> u
 <FormalSpec>pKey:%String,*pFlag:%Boolean,*pMemberName:%String,*pMemberId:%String</FormalSpec>
 <ReturnType>%Status</ReturnType>
 <Implementation><![CDATA[
-	s ^bdb($i(^bdb)) = $lb(pKey)
 	set:$f(pKey,":") pKey = $piece(pKey,":",*)
-	set tSetObj = ##class(SetDefinition).%OpenId(pKey)
+	set tSetObj = ##class(SetDefinition).NameIdxOpen(..%ikDomainId, pKey)
 	if $isobject(tSetObj) {
 		set pFlag=1, pMemberName=tSetObj.Name, pMemberId=pKey
 	} else {
@@ -60,35 +58,16 @@ Expects any predefined dimension members to supplied with <var>pMemmbers</var> u
 ]]></Implementation>
 </Method>
 
-<UDLText name="T">
-<Content><![CDATA[
-/*
-Method %FindComputedMemberByName(pName As %String, Output pFlag As %Boolean, Output pMemberKey As %String, Output pMemberId As %String) As %Status [ Internal ]
-{
-	set tSC = $$$OK
-	try {
-	s ^bdb($i(^bdb)) = $lb("name", pName)
-		
-	} catch (ex) {
-		set tSC = ex.AsStatus()
-	}
-	quit tSC
-}
-*/
-]]></Content>
-</UDLText>
-
 <Method name="%OnComputeBitset">
 <Description>
 Do the actual work of building the bitset.</Description>
 <FormalSpec>pSpec:%String,pIndexKey:%String</FormalSpec>
 <ReturnType>%Status</ReturnType>
 <Implementation><![CDATA[
-	s ^bdb($i(^bdb)) = $lb(pSpec, pIndexKey)
 	set tSC = $$$OK
 	try {
 		set:$f(pSpec,":") pSpec = $piece(pSpec,":",*)
-		set tSetObj = ##class(SetDefinition).%OpenId(pSpec)
+		set tSetObj = ##class(SetDefinition).NameIdxOpen(..%ikDomainId, pSpec)
 		quit:tSetObj=""
 		
 		do tSetObj.GetFilter().ToBitstring(.tBits)
@@ -105,7 +84,6 @@ Do the actual work of building the bitset.</Description>
 	} catch (ex) {
 		set tSC = ex.AsStatus()
 	}
-	s ^bdb($i(^bdb)) = $lb(pSpec, pIndexKey, tSC, $bitcount(tBits(1),1), $bitcount($$$DeepSeeIndexGLVN(..%baseCube, ..%factNumber, pIndexKey,1),1))
 	quit tSC
 ]]></Implementation>
 </Method>

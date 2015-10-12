@@ -36,6 +36,10 @@
     .panel-body-table {
 	    padding: 0px;
     }
+    
+    .glyphicon {
+	    cursor: pointer;
+    }
    </style>
  </head>
  <body style="padding: 15px">
@@ -57,19 +61,19 @@
 	          <input type="text" ng-model="criteria"></input>&nbsp;<span class="glyphicon glyphicon-search"></span>
 	        </label>
 	        <label class="pull-right">
-	         <div ng-click="sc.getSources()"><a class="icon-link" style="cursor: pointer;"><span class="glyphicon glyphicon-refresh"></span> </a>
+	         <div ng-click="sc.getSources()"><a class="icon-link"><span class="glyphicon glyphicon-refresh"></span> </a>
 	         </div>
 	        </label>
 	      </div>
 	      <table class="table table-hover">
 	        <thead>
-	          <th ng-repeat="md in mdData" ng-click="sort(md);">{{md}}
-	            <i ng-class="{'glyphicon glyphicon-chevron-up': isSortUp(md), 'glyphicon glyphicon-chevron-down': isSortDown(md)}"></i>
+	          <th ng-repeat="md in mdData" ng-click="sc.sort(md);">{{md}}
+	            <span ng-class="{'glyphicon glyphicon-chevron-up': sc.isSortUp(md), 'glyphicon glyphicon-chevron-down': sc.isSortDown(md)}"></span>
 	          </th>
 	          <th>FullText</th>
-	          <th>Sets <i ng-class="{'glyphicon glyphicon-chevron-up': isSortUp('Sets'), 'glyphicon glyphicon-chevron-down': isSortDown('Sets')}"></i></th>
+	          <th>Sets <span ng-class="{'glyphicon glyphicon-chevron-up': sc.isSortUp('Sets'), 'glyphicon glyphicon-chevron-down': sc.isSortDown('Sets')}"></span></th>
 	        </thead>
-	        <tr ng-repeat="src in srcData | filter:criteria | orderBy:sortField:reverse | limitTo:100">  
+	        <tr ng-repeat="src in srcData | filter:criteria | orderBy:sc.sortField:sc.reverse | limitTo:100">  
 	          <td ng-repeat="md in mdData">{{src[md]}}</td>
 	          <td ng-bind-html="src.FullText"></td>
 	          <td><label ng-repeat="s in src.Sets" >{{s.Name}}</label></td>
@@ -125,7 +129,7 @@
 	                     <td>
 	                      <div ng-show="!similarConcept.canRemove">{{similarConcept.Spread}}</div>
 	                      <div ng-show="similarConcept.canRemove">
-	                       <span class="glyphicon glyphicon-trash" style="cursor:pointer;" 
+	                       <span class="glyphicon glyphicon-trash" 
 	                       		 title="Remove from set" ng-click="removeEntityFromSet(similarConcept);"></span>
 	                      </div>
 	                     </td>
@@ -156,38 +160,53 @@
 
 	   <div class="tab-pane fade" id="sets" style="padding-top:10px;">
 	   	   <div class="row">
-		     <div class="col-md-5">
+		     <div class="col-md-6">
 		     
 	             <div class="panel panel-primary">
-	               <div class="panel-heading">Sets</div>
+	               <div class="panel-heading">Sets <!--span class="glyphicon glyphicon-plus-sign pull-right" ng-click="newCompositeSet()" title="New composite set" ></span--></div>
 	               <div class="panel-body panel-body-table" style="max-height: 470px;overflow-y: scroll;">
                      <table class="table table-hover">
 			           <thead>
-			             <th>Set</th>
-			             <th>Sources</th>
-			             <th>Overlap</th>
+			             <th width="20%">Set</th>
 			             <th></th>
-			             <th></th>
+			             <th width="15%"></th>
 			           </thead>
                        <tr ng-repeat="set in sets">  
-	                     <td ng-click="selectSet(set, $index)" ng-class="{'success': isSelectedSet(set)}">{{set.Name}}</td>
-	                     <td>{{set.Sources}}</td>
-	                     <td ng-class="{'warning':isWarning(set.Overlap)}" ng-click="showSourcesBySet(set, set.OverlapSet)">{{set.Overlap}}</td>
-                         <td ng-click="editSet(set, $index)">
-                           <span class="glyphicon glyphicon-pencil" style="cursor:pointer;" title="Edit this set"></span>
-                         </td>
-                         <td ng-click="deleteSet(set, $index)">
-                           <span class="glyphicon glyphicon-trash" style="cursor:pointer;" title="Drop this set"></span>
+	                     <td width="20%" ng-click="selectSet(set)" >{{set.Name}}</td>
+	                     <td>
+			              <div class="progress" style="margin-bottom: 0px;">
+			               <div class="progress-bar progress-bar-info" role="progressbar"
+			               		ng-click="showSourcesBySet(set, set.OverlapSet)" 
+			               		ng-style="{ 'width': (100 * (set.Overlap) / totalSourcesDenominator).toFixed(2)+'%', 
+			               					'min-width': (set.Overlap>0) ? '20px' : '0px',
+			               					'cursor': 'pointer' }" 
+			               		title="{{set.Overlap}} records in common">
+			               	<div ng-show="set.Overlap > 0">{{set.Overlap}}</div>
+			               </div>
+			               <div class="progress-bar" role="progressbar" 
+			               		ng-class="{ 'progress-bar-success': isSelectedSet(set) }"
+			               		ng-click="selectSet(set, $index)" 
+			               		ng-style="{ 'width': (100 * (set.Sources-set.Overlap) / totalSourcesDenominator).toFixed(2)+'%', 
+			               					'min-width': (set.Overlap < set.Sources) ? '20px': '0px',
+			               					'cursor': 'pointer' }" 
+			               		title="{{(set.Overlap < set.Sources) ? ((set.Sources-set.Overlap)+' other') : set.Sources }} records in {{set.Name}}" >
+			               	<div ng-show="set.Overlap ? (set.Overlap < set.Sources) : true">{{set.Overlap ? (set.Sources-set.Overlap) : set.Sources}}</div>
+			               </div>
+			               <div ng-show="totalSourcesDenominator != totalSources" class="pull-right" style="margin-right: 5px;">...</div>
+			              </div>
+	                     </td>
+	                     <td width="15%">
+                           <span ng-click="editSet(set, $index)" class="glyphicon glyphicon-pencil" title="Edit this set" ></span>
+                           <span ng-click="deleteSet(set, $index)" class="glyphicon glyphicon-trash" title="Drop this set" style="margin-left: 10px;"></span>
                          </td>
 	                   </tr>
 	                 </table>
 	               </div>
 	             </div>
 	             
-	             
-	             <div style="margin-bottom: 20px;">
- 	              <button type="button" class="btn btn-primary pull-right" ng-click="newCompositeSet()" >New composite set</button>
- 	             </div>
+	             <div>
+	              <button class="btn btn-primary pull-right" ng-click="newCompositeSet()">New composite set</button>
+	             </div>
  	             
  	             <div id="newSetModal" class="modal fade" role="dialog">
 				   <div class="modal-dialog">
@@ -213,30 +232,8 @@
 				  </div>
 				</div>
 	             
-	             <!--
-	              <div class="panel panel-primary">
-	               <div class="panel-heading">Sources</div>
-	               <div class="panel-body panel-body-table" style="max-height: 470px;overflow-y: scroll;">
-	                   <table class="table">
-	                   <tr>
-	                     <td>Total Sources</td>
-	                     <td>{{totalSources}}</td>
-	                   </tr>
-	                   <tr>
-	                     <td>Total in Sets</td>
-	                     <td>{{totalInSets}}</td>
-	                   </tr>
-	                   <tr>
-	                     <td>Total not in Sets</td>
-	                     <td>{{totalNotInSets}}</td>
-	                   </tr>
-	                 </table>
- 		           </div>
-	 		      </div>
-	 		      -->
-	 		      
 		     </div>
-		     <div class="col-md-7">
+		     <div class="col-md-6">
 	             <div class="panel panel-primary">
 	               <div class="panel-heading">{{overlapSourcesRole}}</div>
 	               <div class="panel-body panel-body-table" style="max-height: 470px;overflow-y: scroll;">

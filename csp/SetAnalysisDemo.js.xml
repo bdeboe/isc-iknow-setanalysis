@@ -247,6 +247,11 @@ function transformResponseHandler(data, header) {
 	     $scope.totalNotInSets = tempSets.TotalNotInSets;
 	     $scope.totalSources = tempSets.TotalSources;
 	     $scope.sets = tempSets.Sets;
+	     var maxSetSize = 0;
+	     for (var i = 0; i < tempSets.Sets.length; i++) {
+		     if (maxSetSize < tempSets.Sets[i].Sources) maxSetSize = tempSets.Sets[i].Sources;
+	     }
+	     $scope.totalSourcesDenominator = (maxSetSize < (0.6 * tempSets.TotalSources)) ? ((maxSetSize > 0) ? (maxSetSize * 1.3) : 1) : tempSets.TotalSources;
 	     delete tempSets;
       });
    }
