@@ -33,13 +33,73 @@
 	    color: Navy;
     }
     
+    .tab-pane {
+	    padding-top:10px;
+    }
+    .panel-body-table .tab-pane {
+	    padding-top: 0px;
+    }
     .panel-body-table {
 	    padding: 0px;
+    }
+    .panel-body-table .table {
+	    margin-bottom: 0px;
     }
     
     .glyphicon {
 	    cursor: pointer;
     }
+    
+    
+	.panel.with-nav-tabs .panel-heading{
+	    padding: 5px 5px 0 5px;
+	}
+	.panel.with-nav-tabs .nav-tabs{
+		border-bottom: none;
+	}
+	.panel.with-nav-tabs .nav-justified{
+		margin-bottom: -1px;
+	}
+	
+	
+.with-nav-tabs.panel-primary .nav-tabs > li > a,
+.with-nav-tabs.panel-primary .nav-tabs > li > a:hover,
+.with-nav-tabs.panel-primary .nav-tabs > li > a:focus {
+    color: #fff;
+}
+.with-nav-tabs.panel-primary .nav-tabs > .open > a,
+.with-nav-tabs.panel-primary .nav-tabs > .open > a:hover,
+.with-nav-tabs.panel-primary .nav-tabs > .open > a:focus,
+.with-nav-tabs.panel-primary .nav-tabs > li > a:hover,
+.with-nav-tabs.panel-primary .nav-tabs > li > a:focus {
+	color: #fff;
+	background-color: #3071a9;
+	border-color: transparent;
+}
+.with-nav-tabs.panel-primary .nav-tabs > li.active > a,
+.with-nav-tabs.panel-primary .nav-tabs > li.active > a:hover,
+.with-nav-tabs.panel-primary .nav-tabs > li.active > a:focus {
+	color: #428bca;
+	background-color: #fff;
+	border-color: #428bca;
+	border-bottom-color: transparent;
+}
+.with-nav-tabs.panel-primary .nav-tabs > li.dropdown .dropdown-menu {
+    background-color: #428bca;
+    border-color: #3071a9;
+}
+.with-nav-tabs.panel-primary .nav-tabs > li.dropdown .dropdown-menu > li > a {
+    color: #fff;   
+}
+.with-nav-tabs.panel-primary .nav-tabs > li.dropdown .dropdown-menu > li > a:hover,
+.with-nav-tabs.panel-primary .nav-tabs > li.dropdown .dropdown-menu > li > a:focus {
+    background-color: #3071a9;
+}
+.with-nav-tabs.panel-primary .nav-tabs > li.dropdown .dropdown-menu > .active > a,
+.with-nav-tabs.panel-primary .nav-tabs > li.dropdown .dropdown-menu > .active > a:hover,
+.with-nav-tabs.panel-primary .nav-tabs > li.dropdown .dropdown-menu > .active > a:focus {
+    background-color: #4a9fe9;
+}
    </style>
  </head>
  <body style="padding: 15px">
@@ -71,9 +131,9 @@
 	            <span ng-class="{'glyphicon glyphicon-chevron-up': sc.isSortUp(md), 'glyphicon glyphicon-chevron-down': sc.isSortDown(md)}"></span>
 	          </th>
 	          <th>FullText</th>
-	          <th>Sets <span ng-class="{'glyphicon glyphicon-chevron-up': sc.isSortUp('Sets'), 'glyphicon glyphicon-chevron-down': sc.isSortDown('Sets')}"></span></th>
+	          <th ng-click="sc.sort('Sets');">Sets <span ng-class="{'glyphicon glyphicon-chevron-up': sc.isSortUp('Sets'), 'glyphicon glyphicon-chevron-down': sc.isSortDown('Sets')}"></span></th>
 	        </thead>
-	        <tr ng-repeat="src in srcData | filter:criteria | orderBy:sc.sortField:sc.reverse | limitTo:100">  
+	        <tr ng-repeat="src in srcData | filter:criteria | orderBy:sc.sortField:sc.reverse | limitTo:100" ng-click="selectSource(src.SourceId)">  
 	          <td ng-repeat="md in mdData">{{src[md]}}</td>
 	          <td ng-bind-html="src.FullText"></td>
 	          <td><label ng-repeat="s in src.Sets" >{{s.Name}}</label></td>
@@ -111,7 +171,7 @@
                  <table class="table table-hover">
                     <tr ng-repeat="concept in concepts">  
 	                  <td ng-click="selectConcept(concept)">{{concept.EntityValue}}</td>
-	                  <td>{{concept.Spread}}</td>
+	                  <td>{{concept.Frequency}}</td>
 	                </tr>
 	             </table>
  		       </div>
@@ -120,21 +180,51 @@
            <div class="col-md-4">
 		     <div class="row">
 		       <div class="col-md-12">
-	             <div class="panel panel-primary">
-	               <div class="panel-heading">Similar</div>
+	             <div class="panel with-nav-tabs panel-primary">
+	             
+	             
+	     	        <div class="panel-heading">
+	     	          <ul class="nav nav-tabs">
+	     	            <li class="active"><a href="#tabi1" data-toggle="tab">Similar Entities</a></li>
+	                    <li><a href="#tabi2" data-toggle="tab">CRCs</a></li>
+	     	          </ul>
+	    	        </div>
+	             
 	               <div class="panel-body panel-body-table" style="max-height: 600px;overflow-y: scroll;">
-                     <table class="table table-hover">
-                       <tr ng-repeat="similarConcept in similar" ng-class="{'success': isSelected($index)}">  
-	                     <td ng-click="selectSimilar(similarConcept, $index)">{{similarConcept.EntityValue}}</td>
-	                     <td>
-	                      <div ng-show="!similarConcept.canRemove">{{similarConcept.Spread}}</div>
-	                      <div ng-show="similarConcept.canRemove">
-	                       <span class="glyphicon glyphicon-trash" 
-	                       		 title="Remove from set" ng-click="removeEntityFromSet(similarConcept);"></span>
-	                      </div>
-	                     </td>
-	                   </tr>
-	                 </table>
+	               
+	                 <div class="tab-content">
+	                 
+	                   <div class="tab-pane fade active in" id="tabi1">
+	                     <table class="table table-hover">
+	                       <tr ng-repeat="similarConcept in similar" ng-class="{'success': isSelected($index, 'entity')}">  
+		                     <td ng-click="selectSimilar(similarConcept, $index)">{{similarConcept.EntityValue}}</td>
+		                     <td>
+		                      <div ng-show="!similarConcept.canRemove">{{similarConcept.Frequency}}</div>
+		                      <div ng-show="similarConcept.canRemove">
+		                       <span class="glyphicon glyphicon-trash" 
+		                       		 title="Remove from set" ng-click="removeFromSet('entity', similarConcept);"></span>
+		                      </div>
+		                     </td>
+		                   </tr>
+		                 </table>
+		               </div>
+		               
+	                   <div class="tab-pane fade" id="tabi2">
+	                     <table class="table table-hover">
+	                       <tr ng-repeat="crc in crcs" ng-class="{'success': isSelected($index, 'crc')}">  
+		                     <td ng-click="selectCRC(crc, $index)">{{crc.Value}}</td>
+		                     <td>
+		                      <div ng-show="!crc.canRemove">{{crc.Frequency}}</div>
+		                      <div ng-show="crc.canRemove">
+		                       <span class="glyphicon glyphicon-trash" 
+		                       		 title="Remove from set" ng-click="removeFromSet('crc', crc);"></span>
+		                      </div>
+		                     </td>
+		                   </tr>
+		                 </table>
+		               </div>
+		               
+		             </div>
  		           </div>
 	 		     </div>
                </div> 
@@ -145,7 +235,7 @@
 	           <div class="panel-heading">Sentences</div>
 	           <div class="panel-body panel-body-table" style="max-height: 600px;overflow-y: scroll;">
                  <table class="table table-hover">
-                    <tr ng-repeat="s in sentences">  
+                    <tr ng-repeat="s in sentences" ng-click="selectSource(s.SourceId)">  
 	                  <td>
 	                    <div ng-bind-html="s.Text"></div>
 	                  </td>
@@ -187,7 +277,7 @@
 			               		ng-class="{ 'progress-bar-success': isSelectedSet(set) }"
 			               		ng-click="selectSet(set, $index)" 
 			               		ng-style="{ 'width': (100 * (set.Sources-set.Overlap) / totalSourcesDenominator).toFixed(2)+'%', 
-			               					'min-width': (set.Overlap < set.Sources) ? '20px': '0px',
+			               					'min-width': (set.Overlap != set.Sources) ? '20px': '0px',
 			               					'cursor': 'pointer' }" 
 			               		title="{{(set.Overlap < set.Sources) ? ((set.Sources-set.Overlap)+' other') : set.Sources }} records in {{set.Name}}" >
 			               	<div ng-show="set.Overlap ? (set.Overlap < set.Sources) : true">{{set.Overlap ? (set.Sources-set.Overlap) : set.Sources}}</div>
@@ -238,7 +328,7 @@
 	               <div class="panel-heading">{{overlapSourcesRole}}</div>
 	               <div class="panel-body panel-body-table" style="max-height: 470px;overflow-y: scroll;">
                      <table class="table table-hover">
-	                    <tr ng-repeat="source in overlapSources">  
+	                    <tr ng-repeat="source in overlapSources" ng-click="selectSource(source.SourceId)">  
 		                  <td>
 		                  {{source.SourceId}}: 
 		                    <div ng-bind-html="source.FullText"></div>
@@ -265,16 +355,35 @@
 	       <thead>
 	       	<th ng-click="cc.sort('EntityValue');" style="cursor: pointer;">Entity<i ng-class="{'glyphicon glyphicon-chevron-up': cc.isSortUp('EntityValue'), 'glyphicon glyphicon-chevron-down': cc.isSortDown('EntityValue')}"></i></th>
 	       	<th ng-click="cc.sort('TotalFrequency');" style="cursor: pointer;">Mentions<i ng-class="{'glyphicon glyphicon-chevron-up': cc.isSortUp('TotalFrequency'), 'glyphicon glyphicon-chevron-down': cc.isSortDown('TotalFrequency')}"></i></th>
-	       	<th ng-click="cc.sort('TotalPositive');" style="cursor: pointer;">Positive<i ng-class="{'glyphicon glyphicon-chevron-up': cc.isSortUp('TotalPositive'), 'glyphicon glyphicon-chevron-down': cc.isSortDown('TotalPositive')}"></i></th>
-	       	<th ng-click="cc.sort('TotalNegative');" style="cursor: pointer;">Negative<i ng-class="{'glyphicon glyphicon-chevron-up': cc.isSortUp('TotalNegative'), 'glyphicon glyphicon-chevron-down': cc.isSortDown('TotalNegative')}"></i></th>
+	       	<th>Sentiment
+	       	  <i ng-click="cc.sort('TotalPositive');" ng-class="{'glyphicon glyphicon-thumbs-up': true}" ></i>
+	       	  <i ng-click="cc.sort('TotalNegative');" ng-class="{'glyphicon glyphicon-thumbs-down': true}" ></i></th>
 	       </thead>
 	       <tbody>
 	        <tr ng-repeat="ent in sentimentData | filter:sentimentCriteria | orderBy:cc.sortField:cc.reverse | limitTo:100"
 	        	ng-click="selectConcept(ent);" style="cursor: pointer;" >
 	         <td ng-class="cc.sentimentClass(ent);">{{ent.EntityValue}}</td>
 	         <td>{{ent.TotalFrequency}}</td>
-	         <td class="success">{{ent.TotalPositive}}</td>
-	         <td class="danger">{{ent.TotalNegative}}</td>
+	         <td>
+              <div class="progress" style="margin-bottom: 0px;">
+               <div class="progress-bar progress-bar-success" role="progressbar"
+               		ng-style="{ 'width': (100 * (ent.TotalPositive) / ent.TotalFrequency).toFixed(2)+'%', 
+               					'min-width': (ent.TotalPositive>0) ? '20px' : '0px',
+               					'cursor': 'pointer' }" 
+               		title="{{ent.TotalPositive}} positive mentions, {{ent.TotalFrequency}} in total">
+               	<div ng-show="ent.TotalPositive > 0">{{ent.TotalPositive}}</div>
+               </div>
+               <div class="progress-bar progress-bar-danger pull-right" role="progressbar" 
+               		ng-style="{ 'width': (100 * (ent.TotalNegative) / ent.TotalFrequency).toFixed(2)+'%', 
+               					'min-width': (ent.TotalNegative > 0) ? '20px': '0px',
+               					'cursor': 'pointer' }" 
+               		title="{{ent.TotalNegative}} negative mentions, {{ent.TotalFrequency}} in total" >
+               	<div ng-show="ent.TotalNegative > 0">{{ent.TotalNegative}}</div>
+               </div>
+               <div ng-show="(ent.TotalFrequency - ent.TotalPositive - ent.TotalNegative) > 0"
+               		style="text-align: center;">{{(ent.TotalFrequency - ent.TotalPositive - ent.TotalNegative)}}</div>
+              </div>
+	         </td>
 	        </tr>
 	       </tbody>
 	      </table>
@@ -296,7 +405,7 @@
 	           <div class="panel-heading">Sentences</div>
 	           <div class="panel-body panel-body-table" style="max-height: 450px; overflow-y: scroll;">
                  <table class="table table-hover">
-                    <tr ng-repeat="s in sentences | filter:sentenceCriteriaStr | filter:sentenceCriteria">  
+                    <tr ng-repeat="s in sentences | filter:sentenceCriteriaStr | filter:sentenceCriteria" ng-click="selectSource(s.SourceId)">  
 	                  <td>
 	                    <div ng-bind-html="s.Text"></div>
 	                  </td>
@@ -305,11 +414,29 @@
  		       </div>
 	 		 </div>
 	    </div>
+
+
 	   </div>
+	   
+	   
+	     <div id="fullSourceModal" class="modal fade" role="dialog">
+		   <div class="modal-dialog">
+		    <div class="modal-content">
+		      <div class="modal-header">
+		        <button type="button" class="close" data-dismiss="modal">&times;</button>
+		        <h4 class="modal-title">Record #{{selectedSource.SourceId}}</h4>
+		      </div>
+		      <div class="modal-body">
+		        <div ng-bind-html="selectedSource.Text"></div>
+		      </div>
+		    </div>
+		  </div>
+		</div>
 
 
       </div> <!--myTabContent-->
-
+      
+      
 <div class="modal fade" id="errorModal" tabindex="-1" role="dialog" aria-labelledby="basicModal" aria-hidden="true">
     <div class="modal-dialog modal-dialog-danger">
         <div class="modal-content">

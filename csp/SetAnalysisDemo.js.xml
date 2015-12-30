@@ -114,8 +114,8 @@ function transformResponseHandler(data, header) {
 
  conceptsApp.factory('restSimilar', function ($resource) {
     return $resource(
-		hostURL() + "Entities/:entity?SourceFilter=:sourceFilter", {}, {
-		query: { method: "GET", isArray: false,
+		hostURL() + "Entities?SourceFilter=:sourceFilter", {}, {
+		query: { method: "POST", isArray: false,
 		         interceptor : {
 					response : resourceSuccessHandler,
 			        responseError : resourceErrorHandler
@@ -125,10 +125,23 @@ function transformResponseHandler(data, header) {
 		});
    }); //app.factory 'restSimilar'
    
- conceptsApp.factory('restSentencesByEntity', function ($resource) {
+ conceptsApp.factory('restCRCs', function ($resource) {
     return $resource(
-		hostURL() + "Sentences/Entity/:entity?SourceFilter=:sourceFilter", {}, {
-		query: { method: "GET", isArray: false,
+		hostURL() + "CRCs?SourceFilter=:sourceFilter", {}, {
+		query: { method: "POST", isArray: false,
+		         interceptor : {
+					response : resourceSuccessHandler,
+			        responseError : resourceErrorHandler
+			     },
+			     transformResponse : transformResponseHandler
+			   }
+		});
+   });
+   
+ conceptsApp.factory('restSentences', function ($resource) {
+    return $resource(
+		hostURL() + "Sentences/?SourceFilter=:sourceFilter", {}, {
+		query: { method: "POST", isArray: false,
 		         interceptor : {
 					response : resourceSuccessHandler,
 			        responseError : resourceErrorHandler
@@ -174,6 +187,19 @@ function transformResponseHandler(data, header) {
 			   }
 		});		
    });
+
+ conceptsApp.factory('restSource', function ($resource) {
+    return $resource(
+		hostURL() + "Sources/:sourceId", {}, {
+		query: { method: "GET", isArray: false,
+		         interceptor : {
+					response : resourceSuccessHandler,
+			        responseError : resourceErrorHandler
+			     },
+			     transformResponse : transformResponseHandler
+			   }
+		});		
+   }); //app.factory 'restSource'
 
  conceptsApp.factory('restSets', function ($resource) {
     return $resource(
@@ -228,7 +254,7 @@ function transformResponseHandler(data, header) {
 
  conceptsApp.factory('restUpdateSet', function ($resource) {
     return $resource(
-		hostURL() + "Sets/RemoveEntity", {}, {
+		hostURL() + "Sets/Update", {}, {
 		update : {method: 'POST',
 		         interceptor : {
 					response : resourceSuccessHandler,
@@ -238,7 +264,7 @@ function transformResponseHandler(data, header) {
 		});
    });
   
- conceptsApp.controller('ConceptsController', ['$scope', '$resource', 'restTop', 'restSimilar', 'restSentencesByEntity', 'restSourcesBySet', 'restSourcesByOverlap', 'restSaveSet', 'restSets', 'restDeleteSet', 'restGetOverlap', 'restUpdateSet', 'restSentiment', function($scope, $resource, restTop, restSimilar, restSentencesByEntity, restSourcesBySet, restSourcesByOverlap, restSaveSet, restSets, restDeleteSet, restGetOverlap, restUpdateSet, restSentiment) {
+ conceptsApp.controller('ConceptsController', ['$scope', '$resource', 'restTop', 'restSimilar', 'restSentences', 'restSourcesBySet', 'restSourcesByOverlap', 'restSaveSet', 'restSets', 'restDeleteSet', 'restGetOverlap', 'restUpdateSet', 'restSentiment', 'restSource', 'restCRCs', function($scope, $resource, restTop, restSimilar, restSentences, restSourcesBySet, restSourcesByOverlap, restSaveSet, restSets, restDeleteSet, restGetOverlap, restUpdateSet, restSentiment, restSource, restCRCs) {
 	 
    $scope.getSets = function() {
      $scope.selectedSet = '';
@@ -269,14 +295,24 @@ function transformResponseHandler(data, header) {
 		 for (i in set.Entities) {
 			$scope.similar[$scope.similar.length] = { EntityValue: set.Entities[i], selected: 1, canRemove: true }; 
 		 }
+		 $scope.crcs = new Array();
+		 for (i in set.CRCs) {
+			$scope.crcs[$scope.crcs.length] = { Value: set.CRCs[i], selected: 1, canRemove: true }; 
+		 }
 		$('#myTabs li:eq(1) a').tab('show');
 	  }
   }
   
-  $scope.removeEntityFromSet = function(entity) {
-	 entity.canRemove = false;
-	 entity.selected = 0;
-	 restUpdateSet.update({domain:$scope.ikDomain}, {'SetId': $scope.SetId, 'Name':$scope.SetName, 'RemoveEntity':entity.EntityValue }, function(data) {
+  $scope.removeFromSet = function(type, obj) {
+	 obj.canRemove = false;
+	 obj.selected = 0;
+	 req = {'SetId': $scope.SetId, 'Name':$scope.SetName, 'Type':type };
+	 if (type == 'entity') {
+		 req.Value = obj.EntityValue; 
+	 } else {
+		 req.Value = obj.Value;
+	 }
+	 restUpdateSet.update({domain:$scope.ikDomain}, req, function(data) {
 		 $scope.getSets();
 	 }); 
   }
@@ -347,36 +383,49 @@ function transformResponseHandler(data, header) {
    $scope.clearForm();
    
    $scope.refreshConcepts = function() {
-	  temp = restTop.query({domain:$scope.ikDomain, sourceFilter:$scope.filterSet},function(data) {
+	  temp = restTop.query({domain:$scope.ikDomain, sourceFilter: $scope.filterSet},function(data) {
       	$scope.concepts = temp.Entities;
 	  	delete temp;
       });
+      $scope.getSimilar($scope.autocomplete);
+	  $scope.getCRCs($scope.autocomplete);
    }
          
    $scope.getSimilar = function (conceptValue) {
-     //todo: when using encodeURIComponent, also need to decode in handler
-     var temp = restSimilar.query({domain:$scope.ikDomain, entity:conceptValue, sourceFilter:$scope.filterSet},function(data) {
+     var temp = restSimilar.query({domain:$scope.ikDomain, sourceFilter:$scope.filterSet}, {entity:conceptValue}, function(data) {
      	$scope.similar = temp.Entities;
      	delete temp;
      });
    };
    
-   $scope.getSentences = function (conceptValue) {
-     tempSentences = restSentencesByEntity.query({domain:$scope.ikDomain, entity:conceptValue, sourceFilter:$scope.filterSet},function(data) {
+   $scope.getCRCs = function (entityValue) {
+	   var temp = restCRCs.query({domain:$scope.ikDomain, sourceFilter:$scope.filterSet}, {entity:entityValue}, function(data) {
+		   $scope.crcs = temp.CRCs;
+		   delete temp;
+	   });
+   };
+   
+   $scope.getSentences = function (type, value) {
+     tempSentences = restSentences.query({domain:$scope.ikDomain, sourceFilter:$scope.filterSet}, {type:type, value:value}, function(data) {
 	     $scope.sentences = tempSentences.Sentences;
-	     delete tempSentences;
+	     //delete tempSentences;
      });
-   }
+   };
    
    $scope.selectConcept = function (concept) {
 	 $scope.autocomplete = '';
      $scope.clearForm();
 	 $scope.getSimilar(concept.EntityValue);
-	 $scope.getSentences(concept.EntityValue);
+	 $scope.getCRCs(concept.EntityValue);
+	 $scope.getSentences('entity', concept.EntityValue);
    };
   
-   $scope.isSelected = function (index) {
-   	 return $scope.similar[index].selected;
+   $scope.isSelected = function (index, type) {
+	   if (type == 'entity') {
+	   	   return $scope.similar[index].selected;
+	   } else {
+		   return $scope.crcs[index].selected;
+	   }
    }
    
 
@@ -389,27 +438,40 @@ function transformResponseHandler(data, header) {
 		 // if not in set-editing mode, un/select
 		 $scope.similar[index].selected = !$scope.similar[index].selected;
 	 }
-	 $scope.getSentences(concept.EntityValue);
+	 $scope.getSentences('entity', concept.EntityValue);
    };
 
+
+	$scope.selectCRC = function (crc, index) {
+		if (!crc.canRemove) {
+			crc.selected = !crc.selected;
+		}
+		$scope.getSentences('crc', crc.Value);
+	};
     
   
   $scope.getAutocomplete = function(ikDomain) {
     if (($scope.autocomplete != '') && ($scope.autocomplete.length >= $scope.Features.MinSearchLength)) {
 	    $scope.getSimilar($scope.autocomplete);
+	    $scope.getCRCs($scope.autocomplete);
     }
   };
   
   
   $scope.saveSet = function(name) {
-	var arraySelected = [];
-	var arrayLength = $scope.similar.length;
-    for (var i = 0; i < arrayLength; i++) {
+	var ents = [];
+    for (var i in $scope.similar) {
   	  if ($scope.similar[i].selected) {
-        arraySelected.push($scope.similar[i].EntityValue);
+        ents.push($scope.similar[i].EntityValue);
       }
     }
-    restSaveSet.update({domain:$scope.ikDomain}, {'SetId':$scope.SetId, 'Name':name, 'Entities':arraySelected}, function(data) {
+    var crcs = [];
+    for (var i  in $scope.crcs) {
+	   if ($scope.crcs[i].selected) {
+		    crcs.push($scope.crcs[i].Value);
+	   }
+    }
+    restSaveSet.update({domain:$scope.ikDomain}, {'SetId':$scope.SetId, 'Name':name, 'Entities':ents, 'CRCs':crcs}, function(data) {
       $scope.getSets();   
 	});
   }
@@ -437,7 +499,7 @@ function transformResponseHandler(data, header) {
 		    this.reverse = !this.reverse;
 		  } else {
 		    this.sortField = fieldName;
-		    this.reverse = false;
+		    this.reverse = (fieldName != 'EntityValue');
 		  }
 	  };
 	  
@@ -477,11 +539,20 @@ function transformResponseHandler(data, header) {
 	  }
 	  
 	  $scope.saveCompositeSet = function() {
-		console.log($scope.SetLogic);
+		//console.log($scope.SetLogic);
 		restSaveSet.update({domain:$scope.ikDomain}, { 'SetId':$scope.SetId, 'Name':$scope.SetName, 'Logic':$scope.SetLogic}, function(data) {
 			$('#newSetModal').modal('hide');
 			$scope.getSets();   
 		});
+	  };
+	  
+	  $scope.selectedSource = "";
+	  $scope.selectSource = function(srcId) {
+		  tempSrc = restSource.query({domain:$scope.ikDomain, sourceId:srcId}, function(data) {
+			  $scope.selectedSource = tempSrc;
+			  delete tempSrc;
+		  	  $('#fullSourceModal').modal('show');
+		  });
 	  };
  }]);
 

@@ -20,6 +20,12 @@ This class represents sets saved from the SetAnalysis demo application.</Descrip
 <Parameter name="MAXLEN"/>
 </Property>
 
+<Property name="CRCs">
+<Type>%String</Type>
+<Collection>list</Collection>
+<Parameter name="MAXLEN"/>
+</Property>
+
 <Property name="Logic">
 <Type>%String</Type>
 <Parameter name="MAXLEN" value="2000"/>
@@ -43,6 +49,11 @@ This class represents sets saved from the SetAnalysis demo application.</Descrip
 <Properties>DomainId,Entities(ELEMENTS)</Properties>
 </Index>
 
+<Index name="CRCsIdx">
+<Type>bitmap</Type>
+<Properties>DomainId,CRCs(ELEMENTS)</Properties>
+</Index>
+
 <Method name="GetFilter">
 <Description><![CDATA[
 Retrieves a <class>%iKnow.Filters.Filter</class> instance representing all the sources
@@ -54,9 +65,32 @@ in this set.]]></Description>
 		for i = 1:1:..Entities.Count() {
 			set tEntities = tEntities _ $lb(..Entities.GetAt(i))
 		}
-		quit:'$d(tEntities) ##class(%iKnow.Filters.SourceIdFilter).%New(..DomainId, 0)
-		quit ##class(%iKnow.Filters.ContainsEntityFilter).%New(..DomainId, .tEntities)
+		if tEntities="" {
+			set tFilter = ""
+		} else {
+			set tFilter = ##class(%iKnow.Filters.ContainsEntityFilter).%New(..DomainId, .tEntities)
+		}
+		if '..CRCs.Count() {
+			quit tFilter
+		}
+		
+		// if we still have to filter by CRCs, create a SourceIdFilter
+		set tAllCRCs = ""
+		for i = 1:1:..CRCs.Count() {
+			set tValue = $lfs(..CRCs.GetAt(i)," ~ ")
+			set tAllCRCs = tAllCRCs_$lb(tValue)
+		}
+		do ##class(%iKnow.Queries.SourceAPI).GetByCrcs(.tResult, ..DomainId, tAllCRCs, 0, 0, tFilter)
+		set i = ""
+		for { 
+			set i = $o(tResult(i),1,tData)
+			quit:i=""
+			set tAllSources(+$lg(tData,1))=""
+		}
+		quit ##class(%iKnow.Filters.SourceIdFilter).%New(..DomainId, .tAllSources)
+		
 	} else {
+		
 		set tSC = ..ParseLogic(..DomainId, ..Logic, .tTree)
 		if $$$ISERR(tSC) { $$$ThrowStatus(tSC) }
 		for tNode = tTree:-1:0 {
@@ -203,6 +237,46 @@ AddLeaf
 ]]></Implementation>
 </Method>
 
+<Method name="GetEntities">
+<ReturnType>%ListOfDataTypes</ReturnType>
+<Implementation><![CDATA[
+	set tEntities = ..Entities
+	if (..Logic'="") {
+		do ..ParseLogic(..DomainId, ..Logic, .tTree)
+		for i = 0:1:tTree {
+			for j = 1:1:$g(tTree(i,"leaf")) {
+				set tSetName = tTree(i,"leaf",j)
+				set tSet = ..NameIdxOpen(..DomainId, tSetName)
+				for k = 1:1:tSet.Entities.Count() {
+					do tEntities.Insert(tSet.Entities.GetAt(k))
+				}
+			}
+		}
+	}
+	quit tEntities
+]]></Implementation>
+</Method>
+
+<Method name="GetCRCs">
+<ReturnType>%ListOfDataTypes</ReturnType>
+<Implementation><![CDATA[
+	set tEntities = ..CRCs
+	if (..Logic'="") {
+		do ..ParseLogic(..DomainId, ..Logic, .tTree)
+		for i = 0:1:tTree {
+			for j = 1:1:$g(tTree(i,"leaf")) {
+				set tSetName = tTree(i,"leaf",j)
+				set tSet = ..NameIdxOpen(..DomainId, tSetName)
+				for k = 1:1:tSet.CRCs.Count() {
+					do tEntities.Insert(tSet.CRCs.GetAt(k))
+				}
+			}
+		}
+	}
+	quit tEntities
+]]></Implementation>
+</Method>
+
 <Storage name="Default">
 <Type>%Library.CacheStorage</Type>
 <DataLocation>^Demo.SetAnalEB18.SetDefinitionD</DataLocation>
@@ -226,6 +300,9 @@ AddLeaf
 </Value>
 <Value name="5">
 <Value>Logic</Value>
+</Value>
+<Value name="6">
+<Value>CRCs</Value>
 </Value>
 </Data>
 </Storage>
