@@ -240,40 +240,42 @@ AddLeaf
 <Method name="GetEntities">
 <ReturnType>%ListOfDataTypes</ReturnType>
 <Implementation><![CDATA[
-	set tEntities = ..Entities
+	set tList = ..Entities
 	if (..Logic'="") {
 		do ..ParseLogic(..DomainId, ..Logic, .tTree)
 		for i = 0:1:tTree {
 			for j = 1:1:$g(tTree(i,"leaf")) {
 				set tSetName = tTree(i,"leaf",j)
 				set tSet = ..NameIdxOpen(..DomainId, tSetName)
-				for k = 1:1:tSet.Entities.Count() {
-					do tEntities.Insert(tSet.Entities.GetAt(k))
+				set tEntities = tSet.GetEntities()
+				for k = 1:1:tEntities.Count() {
+					do tList.Insert(tEntities.GetAt(k))
 				}
 			}
 		}
 	}
-	quit tEntities
+	quit tList
 ]]></Implementation>
 </Method>
 
 <Method name="GetCRCs">
 <ReturnType>%ListOfDataTypes</ReturnType>
 <Implementation><![CDATA[
-	set tEntities = ..CRCs
+	set tList = ..CRCs
 	if (..Logic'="") {
 		do ..ParseLogic(..DomainId, ..Logic, .tTree)
 		for i = 0:1:tTree {
 			for j = 1:1:$g(tTree(i,"leaf")) {
 				set tSetName = tTree(i,"leaf",j)
 				set tSet = ..NameIdxOpen(..DomainId, tSetName)
-				for k = 1:1:tSet.CRCs.Count() {
-					do tEntities.Insert(tSet.CRCs.GetAt(k))
+				set tCRCs = tSet.GetCRCs()
+				for k = 1:1:tCRCs.Count() {
+					do tList.Insert(tCRCs.GetAt(k))
 				}
 			}
 		}
 	}
-	quit tEntities
+	quit tList
 ]]></Implementation>
 </Method>
 

@@ -184,6 +184,9 @@ Retrieves the list of sources in <var>pSetId</var> and prints them to JSON.]]></
 			set tCRCId = ##class(%iKnow.Queries.CrcAPI).GetId(pDomainId, $piece(tCRC," ~ ",1), $piece(tCRC," ~ ",2), $piece(tCRC," ~ ",3))
 			set tHighlight("CRC", tCRCId) = "<b class=""entityInSet1"" title=""CRC '"_$zcvt(tCRC,"O","HTML")_"' indicates set '"_tSet.Name_"'"">"
 		}
+		k ^bdb
+		m ^bdb = tHighlight
+		s ^bdb = $lb(tSet.Logic, tSet.GetEntities().Count(), tSet.GetCRCs().Count())
 		
 		set tSC = ..GetSourcesInternal(pDomainId, tSet.GetFilter(),, .tHighlight, 0)
 		quit:$$$ISERR(tSC)

@@ -253,7 +253,7 @@
 		     <div class="col-md-6">
 		     
 	             <div class="panel panel-primary">
-	               <div class="panel-heading">Sets <!--span class="glyphicon glyphicon-plus-sign pull-right" ng-click="newCompositeSet()" title="New composite set" ></span--></div>
+	               <div class="panel-heading">Sets <span class="glyphicon glyphicon-plus-sign pull-right" ng-click="newCompositeSet()" title="New composite set" ></span></div>
 	               <div class="panel-body panel-body-table" style="max-height: 470px;overflow-y: scroll;">
                      <table class="table table-hover">
 			           <thead>
@@ -294,9 +294,6 @@
 	               </div>
 	             </div>
 	             
-	             <div>
-	              <button class="btn btn-primary pull-right" ng-click="newCompositeSet()">New composite set</button>
-	             </div>
  	             
  	             <div id="newSetModal" class="modal fade" role="dialog">
 				   <div class="modal-dialog">
