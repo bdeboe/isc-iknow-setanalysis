@@ -8,7 +8,7 @@
 
 <Parameter name="IKPAGESIZE">
 <Type>INTEGER</Type>
-<Default>1000</Default>
+<Default>200</Default>
 </Parameter>
 
 <Parameter name="IKPFILTERMODE">
@@ -36,11 +36,9 @@ the classic $$$FILTERALLANDSORT</Description>
 <Route Url="/Domain/:domain/Sources/Set/:setId" Method="GET" Call="GetSourcesBySet"/>
 <Route Url="/Domain/:domain/Sources/Set/:setId1/:setId2" Method="GET" Call="GetSourcesBySetOverlap"/>
 
-<Route Url="/Domain/:domain/Sentences/" Method="POST" Call="GetSentences"/>
+<Route Url="/Domain/:domain/Sentences" Method="POST" Call="GetSentences"/>
 
-<Route Url="/Domain/:domain/Entities" Method="GET" Call="GetEntitiesTop"/>
-<Route Url="/Domain/:domain/Entities" Method="POST" Call="GetEntitiesSimilarPost"/>
-<Route Url="/Domain/:domain/Entities/(.*)" Method="GET" Call="GetEntitiesSimilar"/>
+<Route Url="/Domain/:domain/Entities" Method="POST" Call="GetEntities"/>
 
 <Route Url="/Domain/:domain/CRCs" Method="POST" Call="GetCRCs"/>
 
@@ -74,15 +72,14 @@ Retrieves all sources (including full text and metadata) in the domain and print
 ]]></Implementation>
 </Method>
 
-<Method name="GetFilterForRequestSet">
+<Method name="GetFilter">
 <ClassMethod>1</ClassMethod>
-<FormalSpec>pDomainId</FormalSpec>
+<FormalSpec>pDomainId:%Integer,pFilterSpec:%String</FormalSpec>
 <Private>1</Private>
 <ReturnType>%iKnow.Filters.Filter</ReturnType>
 <Implementation><![CDATA[
-	quit:'$d(%request.Data("SourceFilter",1),tFilterSet) ""
-	quit:(tFilterSet="") ""
-	set tSetDef = ##class(Demo.SetAnalysis.SetDefinition).NameIdxOpen(pDomainId, tFilterSet)
+	quit:(pFilterSpec="") ""
+	set tSetDef = ##class(Demo.SetAnalysis.SetDefinition).NameIdxOpen(pDomainId, pFilterSpec)
 	quit:'$isobject(tSetDef) ""
 	quit tSetDef.GetFilter()
 ]]></Implementation>
@@ -110,12 +107,12 @@ Retrieves all sentences (including full text) in the domain containing <var>pEnt
 			set tEntityId = ##class(%iKnow.Queries.EntityAPI).GetId(pDomainId, tRequest.value)
 			set:'tEntityId tEntityId = ##class(%iKnow.Queries.EntityAPI).GetId(pDomainId, $zcvt(tRequest.value,"I","URL"))
 			set tHighlight("ENTITY", tEntityId) = "<b class=""entity"" title=""entity '"_$zcvt(tRequest.value,"O","HTML")_"'"">"
-			set tSC = ##class(%iKnow.Queries.SentenceAPI).GetByEntities(.tSentences, pDomainId, tRequest.value, ..GetFilterForRequestSet(pDomainId), 1, ..#IKPAGESIZE)
+			set tSC = ##class(%iKnow.Queries.SentenceAPI).GetByEntities(.tSentences, pDomainId, tRequest.value, ..GetFilter(pDomainId, tRequest.filter), 1, ..#IKPAGESIZE)
 			quit:$$$ISERR(tSC)
 		} else {
 			set tCRCId = ##class(%iKnow.Queries.CrcAPI).GetId(pDomainId, $piece(tRequest.value," ~ ",1), $piece(tRequest.value," ~ ",2), $piece(tRequest.value," ~ ",3))
 			set tHighlight("CRC", tCRCId) = "<b class=""entity"" title=""CRC '"_$zcvt(tRequest.value,"O","HTML")_"'"">"
-			set tSC = ##class(%iKnow.Queries.SentenceAPI).GetByCrcIds(.tSentences, pDomainId, tCRCId, ..GetFilterForRequestSet(pDomainId), 1, ..#IKPAGESIZE)
+			set tSC = ##class(%iKnow.Queries.SentenceAPI).GetByCrcIds(.tSentences, pDomainId, tCRCId, ..GetFilter(pDomainId, tRequest.filter), 1, ..#IKPAGESIZE)
 			quit:$$$ISERR(tSC)
 		}
 		
@@ -184,9 +181,6 @@ Retrieves the list of sources in <var>pSetId</var> and prints them to JSON.]]></
 			set tCRCId = ##class(%iKnow.Queries.CrcAPI).GetId(pDomainId, $piece(tCRC," ~ ",1), $piece(tCRC," ~ ",2), $piece(tCRC," ~ ",3))
 			set tHighlight("CRC", tCRCId) = "<b class=""entityInSet1"" title=""CRC '"_$zcvt(tCRC,"O","HTML")_"' indicates set '"_tSet.Name_"'"">"
 		}
-		k ^bdb
-		m ^bdb = tHighlight
-		s ^bdb = $lb(tSet.Logic, tSet.GetEntities().Count(), tSet.GetCRCs().Count())
 		
 		set tSC = ..GetSourcesInternal(pDomainId, tSet.GetFilter(),, .tHighlight, 0)
 		quit:$$$ISERR(tSC)
@@ -466,68 +460,42 @@ Any markup in <var>pHighlight</var> is appended with default highlighting of neg
 ]]></Implementation>
 </Method>
 
-<Method name="GetEntitiesTop">
-<Description>
-Retrieves the top entities in the domain and prints them to JSON</Description>
-<ClassMethod>1</ClassMethod>
-<FormalSpec>pDomainId:%Integer</FormalSpec>
-<ReturnType>%Status</ReturnType>
-<Implementation><![CDATA[
-	set tSC = $$$OK
-	try {
-		
-		set tSC = ##class(%iKnow.Queries.EntityAPI).GetTop(.tResult, pDomainId, 1, ..#IKPAGESIZE, ..GetFilterForRequestSet(pDomainId), ..#IKPFILTERMODE)
-		quit:$$$ISERR(tSC)
-		
-		set:$data(%response) %response.ContentType="application/json"
-		set tJSON = ##class(%ZEN.proxyObject).%New()
-		
-		set tSC = ..EntityResultToJSON(.tResult, .tEntities)
-		quit:$$$ISERR(tSC)
-		
-		set tJSON.Entities = tEntities
-		do tJSON.%ToJSON(,..#JSONFORMATPARAMS)
-		
-	} catch (ex) {
-		set tSC = ex.AsStatus()
-	}
-	quit ..ErrorHandler(tSC)
-]]></Implementation>
-</Method>
-
-<Method name="GetEntitiesSimilarPost">
-<Description>
-Workaround for issues with slashes in GET requests</Description>
-<ClassMethod>1</ClassMethod>
-<FormalSpec>pDomainId:%Integer</FormalSpec>
-<ReturnType>%Status</ReturnType>
-<Implementation><![CDATA[
-	set tJSONString = ""
-	while '%request.Content.AtEnd {
-		set tJSONString = tJSONString_$zcvt(%request.Content.ReadLine(),"I","UTF8")
-	}
-	set tSC = ##class(%ZEN.Auxiliary.jsonProvider).%ConvertJSONToObject(tJSONString,,.tJSON)
-	quit:$$$ISERR(tSC)
-	
-	quit ..GetEntitiesSimilar(pDomainId, tJSON.entity)
-]]></Implementation>
-</Method>
-
-<Method name="GetEntitiesSimilar">
+<Method name="GetEntities">
 <Description><![CDATA[
 Retrieves the top entities similar to <var>pString</var> and prints them to JSON]]></Description>
 <ClassMethod>1</ClassMethod>
-<FormalSpec>pDomainId:%Integer,pString:%String(MAXLEN="")</FormalSpec>
+<FormalSpec>pDomainId:%Integer</FormalSpec>
 <ReturnType>%Status</ReturnType>
 <Implementation><![CDATA[
 	set tSC = $$$OK
 	try {
-		set tSC = ##class(%iKnow.Queries.EntityAPI).GetSimilar(.tResult, pDomainId, pString, 1, ..#IKPAGESIZE, ..GetFilterForRequestSet(pDomainId), ..#IKPFILTERMODE)
+		set tJSONString = ""
+		while '%request.Content.AtEnd {
+			set tJSONString = tJSONString_$zcvt(%request.Content.ReadLine(),"I","UTF8")
+		}
+		set tSC = ##class(%ZEN.Auxiliary.jsonProvider).%ConvertJSONToObject(tJSONString,,.tRequest)
 		quit:$$$ISERR(tSC)
+		
+		if $isobject(tRequest.blacklists) {
+			set tBlacklists = ""
+			for i = 1:1:tRequest.blacklists.Count() {
+				set tBlacklists = tBlacklists_$lb(tRequest.blacklists.GetAt(i))
+			}
+		} else {
+			set tBlacklists = ""
+		}
+		
+		if (tRequest.entity = "") {
+			set tSC = ##class(%iKnow.Queries.EntityAPI).GetTop(.tResult, pDomainId, 1, ..#IKPAGESIZE, ..GetFilter(pDomainId, tRequest.filter), ..#IKPFILTERMODE,,,, tBlacklists)
+			quit:$$$ISERR(tSC)
+		} else {
+			set tSC = ##class(%iKnow.Queries.EntityAPI).GetSimilar(.tResult, pDomainId, tRequest.entity, 1, ..#IKPAGESIZE, ..GetFilter(pDomainId, tRequest.filter), ..#IKPFILTERMODE,, tBlacklists)
+			quit:$$$ISERR(tSC)
+		}
 		
 		set:$data(%response) %response.ContentType="application/json"
 		set tJSON = ##class(%ZEN.proxyObject).%New()
-		set tJSON.Seed = pString
+		set tJSON.Seed = tRequest.entity
 		
 		set tSC = ..EntityResultToJSON(.tResult, .tEntities)
 		quit:$$$ISERR(tSC)
@@ -584,7 +552,7 @@ Utility method for converting an array of entities to JSON</Description>
 		set tSC = ##class(%ZEN.Auxiliary.jsonProvider).%ConvertJSONToObject(tJSONString,,.tRequest)
 		quit:$$$ISERR(tSC)
 	
-		set tSC = ##class(%iKnow.Queries.CrcAPI).GetByEntities(.tResult, pDomainId, tRequest.entity, 1, ..#IKPAGESIZE, ..GetFilterForRequestSet(pDomainId), ..#IKPFILTERMODE)
+		set tSC = ##class(%iKnow.Queries.CrcAPI).GetByEntities(.tResult, pDomainId, tRequest.entity, 1, ..#IKPAGESIZE, ..GetFilter(pDomainId, tRequest.filter), ..#IKPFILTERMODE)
 		quit:$$$ISERR(tSC)
 		
 		set:$data(%response) %response.ContentType="application/json"
@@ -1018,6 +986,20 @@ Simple error handler, converting a <class>%Status</class> object to a JSON repre
 		}
 		
 		set tJSON.MinSearchLength = tDomain.GetParameter($$$IKPMINTOPCONCEPTLENGTH)
+		
+		kill tResult
+		set tJSON.Blacklists = ##class(%ListOfObjects).%New()
+		set tSC = ##class(%iKnow.Utils.MaintenanceAPI).GetBlackLists(.tResult, pDomainId, 1)
+		quit:$$$ISERR(tSC)
+		set i = ""
+		for {
+			set i = $order(tResult(i),1,tData)
+			quit:i=""
+			set tProxy = ##class(%ZEN.proxyObject).%New()
+			set tProxy.ID = $lg(tData,1)
+			set tProxy.Name = $lg(tData,2)
+			do tJSON.Blacklists.Insert(tProxy)
+		}
 		
 		// write JSON
 		do tJSON.%ToJSON(, ..#JSONFORMATPARAMS)

@@ -145,19 +145,35 @@
        <div class="tab-pane fade" id="concepts" style="padding-top:10px;">
         <br>
           <div class="row">
-		   <div class="col-md-4">    
-		     Filter entities &nbsp;<select ng-model="filterSet" ng-change="refreshConcepts()">
+		   <div class="col-md-4">
+		    <form class="form-inline">
+		     <select ng-model="filterSet" class="form-control input-sm" ng-change="refreshConcepts()">
 		      <option value="">show all</option>
-		      <option ng-repeat="set in sets" ng-value="set.Name">for set '{{set.Name}}'</option>
+		      <option ng-repeat="set in sets" ng-value="set.Name">Filter by set '{{set.Name}}'</option>
 		     </select>
+		     <span class="dropdown">
+ 		      <button id="btnBlacklist" class="btn btn-sm" ng-class="{ 'btn-success': (!!filterBL), 'btn-default': (!filterBL) }" ng-show="Features.Blacklists.length > 0" data-toggle="dropdown" aria-haspopup="true" style="margin-left:10px;"><span class="glyphicon glyphicon-sunglasses"></span></button>
+		      <ul class="dropdown-menu" aria-labelledby="btnBlacklist">
+		       <li ng-repeat="bl in Features.Blacklists" style="padding: 0px 10px;"><input type="checkbox" ng-click="toggleBL(bl.ID)" style="margin-right: 10px;" />{{bl.Name}}</li>
+		      </ul>
+		     </span>
+		    </form>
            </div>
            <div class="col-md-4">
-              Similar of &nbsp;<input type="text" id="inputConcept" placeholder="Concept fragment" ng-model="autocomplete" ng-change="getAutocomplete()">
+             <div class="input-group">
+              <input type="text" class="form-control input-sm" placeholder="Concept fragment" ng-model="autocomplete" ng-keyup="exploreKey($event)">
+              <span class="input-group-btn">
+               <button class="btn btn-default btn-sm" ng-click="explore()">Go!</button>
+              </span>
+             </div>
           </div> 
            <div class="col-md-4">
-              <input type="text"  id="inputSet" placeholder="Set name" ng-model="SetName">
-              <button type="submit" ng-click="saveSet(SetName)" class="btn btn-primary btn-sm" style="margin-left: 15px;">Save</button>
-              <button type="submit" ng-click="clearForm()" class="btn btn-warning btn-sm" style="margin-left: 15px;">Clear</button>
+             <div class="input-group">
+              <input type="text" class="form-control input-sm" id="inputSet" placeholder="Set name" ng-model="SetName">
+              <span class="input-group-btn">
+               <button type="submit" ng-click="saveSet(SetName)" class="btn btn-default btn-sm">Save</button>
+              </span>
+             </div>
            </div> 
         </div>
    
@@ -453,7 +469,7 @@
   </div>
 </div>
 
-    <script type="text/javascript" src="nglib/jquery-1.9.0.min.js"></script>
+    <script type="text/javascript" src="nglib/jquery-2.0.3.min.js"></script>
     <script type="text/javascript" src="nglib/angular.min.js"></script>  <!--general angular framework-->
     <script type="text/javascript" src="nglib/bootstrap/js/bootstrap.min.js"></script>  <!--twitter bootstrap framework -->
     <script type="text/javascript" src="nglib/angular-resource.min.js"></script>  <!--angular tools for resources (like $resource for rest)  -->

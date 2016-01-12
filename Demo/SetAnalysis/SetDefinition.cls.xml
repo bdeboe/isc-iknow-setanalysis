@@ -66,12 +66,12 @@ in this set.]]></Description>
 			set tEntities = tEntities _ $lb(..Entities.GetAt(i))
 		}
 		if tEntities="" {
-			set tFilter = ""
+			set tEntityFilter = ""
 		} else {
-			set tFilter = ##class(%iKnow.Filters.ContainsEntityFilter).%New(..DomainId, .tEntities)
+			set tEntityFilter = ##class(%iKnow.Filters.ContainsEntityFilter).%New(..DomainId, .tEntities)
 		}
 		if '..CRCs.Count() {
-			quit tFilter
+			quit tEntityFilter
 		}
 		
 		// if we still have to filter by CRCs, create a SourceIdFilter
@@ -80,14 +80,22 @@ in this set.]]></Description>
 			set tValue = $lfs(..CRCs.GetAt(i)," ~ ")
 			set tAllCRCs = tAllCRCs_$lb(tValue)
 		}
-		do ##class(%iKnow.Queries.SourceAPI).GetByCrcs(.tResult, ..DomainId, tAllCRCs, 0, 0, tFilter)
+		do ##class(%iKnow.Queries.SourceAPI).GetByCrcs(.tResult, ..DomainId, tAllCRCs, 0, 0)
 		set i = ""
 		for { 
 			set i = $o(tResult(i),1,tData)
 			quit:i=""
 			set tAllSources(+$lg(tData,1))=""
 		}
-		quit ##class(%iKnow.Filters.SourceIdFilter).%New(..DomainId, .tAllSources)
+		set tCRCFilter = ##class(%iKnow.Filters.SourceIdFilter).%New(..DomainId, .tAllSources)
+		if (tEntityFilter="") {
+			quit tCRCFilter
+		} else {
+			set tFilter = ##class(%iKnow.Filters.GroupFilter).%New(..DomainId, "OR")
+			do tFilter.AddSubFilter(tEntityFilter)
+			do tFilter.AddSubFilter(tCRCFilter)
+			quit tFilter
+		}
 		
 	} else {
 		
