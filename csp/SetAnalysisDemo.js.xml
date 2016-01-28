@@ -438,7 +438,6 @@ function transformResponseHandler(data, header) {
 	};
     
   $scope.exploreKey = function(event) {
-	console.log(event);
 	if (event && ((event.keyCode==13) || (event.which==13))) {
 		$scope.explore();
 	}
