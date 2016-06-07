@@ -272,11 +272,6 @@
 	               <div class="panel-heading">Sets <span class="glyphicon glyphicon-plus-sign pull-right" ng-click="newCompositeSet()" title="New composite set" ></span></div>
 	               <div class="panel-body panel-body-table" style="max-height: 470px;overflow-y: scroll;">
                      <table class="table table-hover">
-			           <thead>
-			             <th width="20%">Set</th>
-			             <th></th>
-			             <th width="15%"></th>
-			           </thead>
                        <tr ng-repeat="set in sets">  
 	                     <td width="20%" ng-click="selectSet(set)" >{{set.Name}}</td>
 	                     <td>
@@ -472,7 +467,6 @@
     <script type="text/javascript" src="nglib/jquery-2.0.3.min.js"></script>
     <script type="text/javascript" src="nglib/angular.min.js"></script>  <!--general angular framework-->
     <script type="text/javascript" src="nglib/bootstrap/js/bootstrap.min.js"></script>  <!--twitter bootstrap framework -->
-    <script type="text/javascript" src="nglib/angular-resource.min.js"></script>  <!--angular tools for resources (like $resource for rest)  -->
     <script type="text/javascript" src="nglib/angular-sanitize.min.js"></script>  <!--angular tools for sanitize (html safe output like $sce -->
     <script type="text/javascript" src="SetAnalysisDemo.js"></script>
    </div> <!--container-->

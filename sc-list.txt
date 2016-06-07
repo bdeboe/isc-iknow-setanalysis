@@ -1,4 +1,2 @@
-<cspapp>/SetAnalysisDemo.csp
-<cspapp>/SetAnalysisDemo.js
-<cspapp>/nglib
-SetAnalysisDemo.prj
+<cspapp>
+Demo.pkg

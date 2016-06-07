@@ -469,6 +469,7 @@ Retrieves the top entities similar to <var>pString</var> and prints them to JSON
 <Implementation><![CDATA[
 	set tSC = $$$OK
 	try {
+		s ^bdb($i(^bdb), "c") = %request.Content  m ^bdb(^bdb,"d")=%request.Data
 		set tJSONString = ""
 		while '%request.Content.AtEnd {
 			set tJSONString = tJSONString_$zcvt(%request.Content.ReadLine(),"I","UTF8")
