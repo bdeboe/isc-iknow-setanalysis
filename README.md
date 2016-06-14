@@ -9,6 +9,8 @@ Through the simple interface, you can then select entities whose presence define
 Of course, this is just a demo that illustrates the bottom-up data-centric nature and not meant as a production 
 app.
 
+See also https://community.intersystems.com/post/iknow-demo-apps-part-1-knowledge-portal for a detailed article on setting
+up and using this interface
 
 ### Setting up the demo
 See the class reference for the Setup() method in Demo.SetAnalysis.Utils. It allows setting up the demo for
