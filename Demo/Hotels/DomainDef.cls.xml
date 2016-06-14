@@ -75,6 +75,10 @@ package.</p>]]></Description>
 metadataFields="Author,StayType,StayMonth" whereClause="reviewtext is not null"
 metadataColumns="Authorname,StayType,StayMonth" />
 </data>
+<blacklist name="SimpleTerms">
+<entry>hotel</entry>
+<entry>guest</entry>
+</blacklist>
 </domain>
 ]]></Data>
 </XData>

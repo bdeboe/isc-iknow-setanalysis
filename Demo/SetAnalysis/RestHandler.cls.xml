@@ -6,6 +6,10 @@
 <Super>%CSP.REST</Super>
 <TimeCreated>63656,39452.545491</TimeCreated>
 
+<Parameter name="CONTENTTYPE">
+<Default>application/json</Default>
+</Parameter>
+
 <Parameter name="IKPAGESIZE">
 <Type>INTEGER</Type>
 <Default>200</Default>
