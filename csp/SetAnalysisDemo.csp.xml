@@ -269,7 +269,12 @@
 		     <div class="col-md-6">
 		     
 	             <div class="panel panel-primary">
-	               <div class="panel-heading">Sets <span class="glyphicon glyphicon-plus-sign pull-right" ng-click="newCompositeSet()" title="New composite set" ></span></div>
+	               <div class="panel-heading">Sets 
+	                 <span class="pull-right">
+	                   <span class="glyphicon glyphicon-refresh" ng-click="getSets()" title="Refresh" ></span>
+	                   <span class="glyphicon glyphicon-plus-sign" style="margin-left:10px;" ng-click="newCompositeSet()" title="New composite set" ></span>
+	                 </span>
+	               </div>
 	               <div class="panel-body panel-body-table" style="max-height: 470px;overflow-y: scroll;">
                      <table class="table table-hover">
                        <tr ng-repeat="set in sets">  

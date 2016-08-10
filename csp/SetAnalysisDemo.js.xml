@@ -96,7 +96,7 @@ var conceptsApp = angular.module('conceptsApp', ['ngSanitize']);
 	  		method: 'POST',
 	  		contentType: 'application/json; charset=UTF-8',
 	  		data: JSON.stringify( req ),
-  			success: function(data) {
+  			complete: function(data) {
 	      		$scope.getSets();
        		}
 	  });
@@ -108,7 +108,7 @@ var conceptsApp = angular.module('conceptsApp', ['ngSanitize']);
 	  		method: 'POST',
 	  		contentType: 'application/json; charset=UTF-8',
 	  		data: JSON.stringify({ SetId: set.SetId }),
-  			success: function(data) {
+  			complete: function(data) {
 	      		$scope.getSets();
        		}
 	  });
@@ -174,7 +174,6 @@ var conceptsApp = angular.module('conceptsApp', ['ngSanitize']);
    $scope.clearForm();
    
    $scope.refreshConcepts = function() {
-	  
 	  $.ajax({
 	  		url: hostURL($scope.ikDomain)+'Entities',
 	  		method: 'POST',
@@ -296,13 +295,11 @@ var conceptsApp = angular.module('conceptsApp', ['ngSanitize']);
 		 var x = $scope.selectedBlacklists.slice(0,index);
 		 $scope.selectedBlacklists = x.concat($scope.selectedBlacklists.slice(index+1));
 	 }
-	 //console.log(id, $scope.selectedBlacklists);
 	 $scope.refreshConcepts();
   }
   $scope.selectedBlacklists = [];
   
   $scope.explore = function() {
-	//console.log($scope.autocomplete);
     if (($scope.autocomplete != '') && ($scope.autocomplete.length >= $scope.Features.MinSearchLength)) {
 	    $scope.getSimilar($scope.autocomplete);
 	    $scope.getCRCs($scope.autocomplete);
@@ -334,7 +331,7 @@ var conceptsApp = angular.module('conceptsApp', ['ngSanitize']);
   				Entities: ents,
   				CRCs: crcs
   			}),
-  			success: function(data) {
+  			complete: function(data) {
 	      		$scope.getSets();
        		}
 	  });
@@ -404,7 +401,6 @@ var conceptsApp = angular.module('conceptsApp', ['ngSanitize']);
 	  }
 	  
 	  $scope.saveCompositeSet = function() {
-		//console.log($scope.SetLogic);
 		
 		  $.ajax({
 		  		url: hostURL($scope.ikDomain)+'Sets/Save',
@@ -415,7 +411,7 @@ var conceptsApp = angular.module('conceptsApp', ['ngSanitize']);
 	 	 			Name: $scope.SetName, 
 	  				Logic: $scope.SetLogic
 	  			}),
-	  			success: function(data) {
+	  			complete: function(data) {
 					$('#newSetModal').modal('hide');
 		      		$scope.getSets();
 	       		}
@@ -472,6 +468,6 @@ var conceptsApp = angular.module('conceptsApp', ['ngSanitize']);
 	  };
 	  
     
-  }]); //app.controller 'sourceController'
+  }]);
 ]]></CSP>
 </Export>
