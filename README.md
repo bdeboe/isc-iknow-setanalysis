@@ -9,7 +9,7 @@ Through the simple interface, you can then select entities whose presence define
 Of course, this is just a demo that illustrates the bottom-up data-centric nature and not meant as a production 
 app.
 
-See also https://community.intersystems.com/post/iknow-demo-apps-part-1-knowledge-portal for a detailed article on setting
+See also https://community.intersystems.com/post/iknow-demo-apps-part-2-set-analysis-demo for a detailed article on setting
 up and using this interface
 
 ### Setting up the demo
