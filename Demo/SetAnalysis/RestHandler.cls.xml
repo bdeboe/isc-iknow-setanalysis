@@ -54,6 +54,7 @@ the classic $$$FILTERALLANDSORT</Description>
 <Route Url="/Domain/:domain/Sets/Overlaps/:setId" Method="GET" Call="GetSetOverlap"/>
 
 <Route Url="/Domain/:domain/Sentiment" Method="GET" Call="GetSentimental" />
+<Route Url="/Domain/:domain/Sentiment" Method="POST" Call="GetSentimental" />
 </Routes>
 ]]></Data>
 </XData>
@@ -885,6 +886,15 @@ Simple error handler, converting a <class>%Status</class> object to a JSON repre
 <Implementation><![CDATA[
 	set tSC = $$$OK
 	try {
+		if $isobject(%request.Content.blacklists) {
+			set tBlacklists = ""
+			for i = 1:1:%request.Content.blacklists.Count() {
+				set tBlacklists = tBlacklists_$lb(%request.Content.blacklists.GetAt(i))
+			}
+		} else {
+			set tBlacklists = ""
+		}
+		
 		set:$data(%response) %response.ContentType="application/json"
 		
 		set tJSON = ##class(%ZEN.proxyObject).%New()
@@ -896,16 +906,26 @@ Simple error handler, converting a <class>%Status</class> object to a JSON repre
 		set tPartTable = $tr(tPackageName,".","_")_".Part"
 
 		set tSQL = "SELECT * FROM "_
-					"(SELECT Entity->EntityValue EntityValue, SUM(Positive) TotalPositive, SUM(Negative) TotalNegative, Entity->CorpusFrequency TotalFrequency FROM "_
-					"((SELECT Entity, 1 Positive, 0 Negative FROM "_tPartTable_" WHERE FOR SOME %ELEMENT(Attributes) (%KEY = 'ATP:5') AND EntTypeId = 0) "_
+					"(SELECT Entity->EntUniId EntUniId, Entity->EntityValue EntityValue, SUM(Positive) TotalPositive, SUM(Negative) TotalNegative, Entity->CorpusFrequency TotalFrequency FROM "_
+					"((SELECT Entity, 1 Positive, 0 Negative FROM "_tPartTable_" WHERE FOR SOME %ELEMENT(Attributes) ((%KEY = 'ATP:5') OR (%KEY = 'ATS:5')) AND EntTypeId = 0) "_
 					"UNION ALL "_
-					"(SELECT Entity, 0 Positive, 1 Negative FROM "_tPartTable_" WHERE FOR SOME %ELEMENT(Attributes) (%KEY = 'ATP:6') AND EntTypeId = 0)) u "_
+					"(SELECT Entity, 0 Positive, 1 Negative FROM "_tPartTable_" WHERE FOR SOME %ELEMENT(Attributes) ((%KEY = 'ATP:6') OR (%KEY = 'ATS:6')) AND EntTypeId = 0)) u "_
 					"GROUP BY Entity) "_
 					"ORDER BY (TotalPositive+TotalNegative) DESC"
 					
 		set tResult = ##class(%SQL.Statement).%ExecDirect(,tSQL)
 		set tJSON.Entities = ##class(%ListOfObjects).%New()
 		while tResult.%Next() {
+			
+			if (tBlacklists'="") {
+				set tIsBlacklisted = 0, ptr=0, tEntUniId = tResult.%Get("EntUniId")
+				while $listnext(tBlacklists,ptr,tBlacklistID) {
+					set tIsBlacklisted = ##class(%iKnow.Utils.MaintenanceAPI).BlacklistContainsElement(pDomainId,tBlacklistID,tEntUniId)
+					quit:tIsBlacklisted
+				}
+				continue:tIsBlacklisted
+			}
+			
 			set tEntity = ##class(%ZEN.proxyObject).%New()
 			set tEntity.EntityValue = tResult.%Get("EntityValue")
 			set tEntity.TotalPositive = tResult.%Get("TotalPositive")

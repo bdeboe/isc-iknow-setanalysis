@@ -296,6 +296,7 @@ var conceptsApp = angular.module('conceptsApp', ['ngSanitize']);
 		 $scope.selectedBlacklists = x.concat($scope.selectedBlacklists.slice(index+1));
 	 }
 	 $scope.refreshConcepts();
+	 $scope.getSentiment();
   }
   $scope.selectedBlacklists = [];
   
@@ -344,10 +345,18 @@ var conceptsApp = angular.module('conceptsApp', ['ngSanitize']);
    
 	  
 	  $scope.getSentiment = function() {
-		  $.get(hostURL($scope.ikDomain)+'Sentiment', function(data) {
-			  $scope.sentimentData = data.Entities;
-			  $scope.hasSentimentData = (data.Entities.length>0);
-			  $scope.$apply();
+		  $.ajax({
+		  		url: hostURL($scope.ikDomain)+'Sentiment',
+		  		method: 'POST',
+		  		contentType: 'application/json; charset=UTF-8',
+		  		data: JSON.stringify({ 
+	  				blacklists: $scope.selectedBlacklists
+	  			}),
+	  			success: function(data) {
+				  $scope.sentimentData = data.Entities;
+				  $scope.hasSentimentData = (data.Entities.length>0);
+				  $scope.$apply();
+	       		}
 		  });
 	  };
 	  

@@ -132,7 +132,7 @@ rdlang	write !,"Which language are these texts in? [en] "
 		
 		set pDomainDefClass = tPackageName_".Domain"
 		
-		if ($system.Version.GetMajor()>=2015) && ($system.Version.GetMinor()>=2) {
+		if (($system.Version.GetMajor()*10)+$system.Version.GetMinor())>=20152 {
 			// leverage utility methods in 2015.2+
 			set tSC = tDomainDef.%SaveToClass(pDomainDefClass, 1, 1, 1)
 			quit:$$$ISERR(tSC)

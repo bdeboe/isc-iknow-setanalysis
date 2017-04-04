@@ -21,7 +21,7 @@
     
     .entity {
 	    font-weight: bold;
-	    color: DarkGreen;
+	    color: Purple;
     }
     
     .entityInSet1 {
