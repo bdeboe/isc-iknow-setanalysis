@@ -1,0 +1,11 @@
+{
+    "objectscript.conn": {
+        "server": "local",
+        "ns": "USER",
+        "active": true
+    },
+    "objectscript.export": {
+        "folder": "src",
+        "addCategory": true
+    }
+}
