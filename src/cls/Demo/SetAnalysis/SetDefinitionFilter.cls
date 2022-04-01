@@ -7,7 +7,7 @@ Method %OnNew(pDomainId As %Integer, pSetName As %String) As %Status [ Internal,
 {
 	set i%DomainId = pDomainId
 	set i%SetName = pSetName
-	quit ..Initialize()
+	quit ..Initialize(0)
 }
 
 Method GetLabel() As %String
