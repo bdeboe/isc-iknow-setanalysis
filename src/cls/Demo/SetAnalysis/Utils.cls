@@ -198,4 +198,89 @@ ClassMethod CreateRestWebApp(ByRef pWebAppName = "") As %Status
 	quit $$$OK
 }
 
+ClassMethod ToClassifier(domainId As %Integer, setName As %String, classifierClassName As %String, metadataFieldName As %String, targetCategory As %String = "") As %Status
+{
+    set sc = $$$OK
+    try {
+        set set = ##class(Demo.SetAnalysis.SetDefinition).NameIdxOpen(domainId, setName,, .sc)
+        quit:'$isobject(set)
+        set classifier = ##class(%iKnow.Classification.Definition.Classifier).%New()
+        set classifier.description = "Automatically generated from set "_setName
+
+		set param = ##class(%iKnow.Classification.Definition.BuilderParameter).%New()
+		set param.name = "DomainId"
+		set param.value = domainId
+		do classifier.BuilderParameters.Insert(param)
+		set param = ##class(%iKnow.Classification.Definition.BuilderParameter).%New()
+		set param.name = "MetadataField"
+		set param.value = metadataFieldName
+		do classifier.BuilderParameters.Insert(param)
+
+        // first build categories based on metadata field
+        set sc = ##class(%iKnow.Queries.MetadataAPI).GetUniqueValues(.md, domainId, metadataFieldName, 0, 0)
+        quit:$$$ISERR(sc)
+        set i = ""
+        for {
+            set i = $order(md(i),1,d)
+            quit:i=""
+            set cat = ##class(%iKnow.Classification.Definition.Category).%New()
+            set cat.name = $lg(d,1)
+            set filter = ##class(%iKnow.Filters.SimpleMetadataFilter).%New(domainId, metadataFieldName, "=", cat.name)
+            set cat.recordCount = filter.FilteredSourceCount
+            set cat.spec = filter.ToString()
+            do classifier.Categories.Insert(cat)
+
+			set:targetCategory="" targetCategory = cat.name
+        }
+		
+
+		set classifier.ClassificationMethod = ##class(%iKnow.Classification.Definition.ClassificationMethod).%New()
+		set classifier.ClassificationMethod.method = "rules"
+		set classifier.ClassificationMethod.ClassificationRules = ##class(%iKnow.Classification.Definition.ClassificationRules).%New()
+
+		set rule = ##class(%iKnow.Classification.Definition.Rule).%New()
+		set rule.category = targetCategory
+		set rule.Predicate = ##class(%iKnow.Classification.Definition.PredicateOR).%New()
+		do classifier.ClassificationMethod.ClassificationRules.Rules.Insert(rule)
+ 
+        set classifier.TermDictionary = ##class(%iKnow.Classification.Definition.TermDictionary).%New()
+		set entityCount = set.Entities.Count()
+        for i = 1:1:entityCount {
+            set term = ##class(%iKnow.Classification.Definition.TermEntity).%New()
+            do term.Entries.Insert(set.Entities.GetAt(i))
+			do classifier.TermDictionary.Terms.Insert(term)
+
+			set predicate = ##class(%iKnow.Classification.Definition.Predicate).%New(),
+				predicate.operator = "greaterThan",
+				predicate.term = i,
+				predicate.value = 0
+			do rule.Predicate.predicates.Insert(predicate)
+        }
+		
+        for i = 1:1:set.CRCs.Count() {
+            set term = ##class(%iKnow.Classification.Definition.TermCRC).%New()
+			set str = set.CRCs.GetAt(i),
+				crc = ##class(%iKnow.Classification.Definition.TermCRCEntry).%New(),
+				crc.Master = $p(str," ~ ",1),
+				crc.Relation = $p(str," ~ ",2),
+				crc.Slave = $p(str," ~ ",3)
+            do term.Entries.Insert(crc)
+			do classifier.TermDictionary.Terms.Insert(term)
+			
+			set predicate = ##class(%iKnow.Classification.Definition.Predicate).%New(),
+				predicate.operator = "greaterThan",
+				predicate.term = i+entityCount,
+				predicate.value = 0
+			do rule.Predicate.predicates.Insert(predicate)
+        }
+
+        set sc = classifier.%SaveToClass(classifierClassName, 1, 1)
+        quit:$$$ISERR(sc)
+
+    } catch (ex) {
+        set sc = ex.AsStatus()
+    }
+    quit sc
+}
+
 }
