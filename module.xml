@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Export generator="Cache" version="25">
+  <Document name="isc-iknow-setanalysis.ZPM">
+    <Module>
+      <Name>isc-iknow-setanalysis</Name>
+      <Version>1.0.0</Version>
+      <Description>About Set Analysis Demo app for InterSystems' iKnow technology</Description>
+      <Packaging>module</Packaging>
+      <SourcesRoot>src</SourcesRoot>
+	  <CSPApplication 
+            SourcePath="/src/oth/csp/user/"
+            DeployPath="${cspdir}/iknow-setanalysis/"
+            Url="/iknow-setanalysis" 
+            ServeFiles="1"
+            CookiePath="/iknow-setanalysis/"
+            PasswordAuthEnabled="1"
+            AuthenticationMethods="32" 
+            MatchRoles=":%ALL"
+            Recurse="1"/>
+      <Resource Name="Demo.PKG"/>
+    </Module>
+  </Document>
+</Export>

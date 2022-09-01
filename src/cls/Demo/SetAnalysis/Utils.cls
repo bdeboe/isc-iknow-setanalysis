@@ -284,3 +284,4 @@ ClassMethod ToClassifier(domainId As %Integer, setName As %String, classifierCla
 }
 
 }
+

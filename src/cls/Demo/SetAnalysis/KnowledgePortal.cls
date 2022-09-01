@@ -59,3 +59,4 @@ Method CreateCustomFilter(pFilterType As %String, pSettings As %String) As %iKno
 }
 
 }
+
