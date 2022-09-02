@@ -3,10 +3,13 @@
   <Document name="isc-iknow-setanalysis.ZPM">
     <Module>
       <Name>isc-iknow-setanalysis</Name>
-      <Version>1.0.0</Version>
+      <Version>1.0.1</Version>
       <Description>About Set Analysis Demo app for InterSystems' iKnow technology</Description>
       <Packaging>module</Packaging>
       <SourcesRoot>src</SourcesRoot>
+	  <Invoke Class="Demo.SetAnalysis.Utils" Method="CreateRestWebApp" Phase="Activate" When="After">
+	    <Arg>/isc-iknow-setanalysis</Arg>
+	  </Invoke>
 	  <CSPApplication 
             SourcePath="/src/oth/csp/user/"
             DeployPath="${cspdir}/iknow-setanalysis/"
