@@ -47,3 +47,4 @@ Method BuildSourceFilter(maxOffset As %Integer) As %Status [ Private ]
 }
 
 }
+

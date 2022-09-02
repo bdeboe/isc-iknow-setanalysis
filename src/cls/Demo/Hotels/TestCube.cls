@@ -45,3 +45,4 @@ XData Cube [ XMLNamespace = "http://www.intersystems.com/deepsee" ]
 Parameter DOMAIN;
 
 }
+
